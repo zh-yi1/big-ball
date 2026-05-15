@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 CN_TZ = timezone(timedelta(hours=8))
-POLL_SECONDS = 360  # 6 分钟
+POLL_SECONDS = 300  # 5 分钟
 
 
 def load_rules():
