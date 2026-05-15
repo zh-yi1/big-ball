@@ -36,11 +36,11 @@
                                             <div x-text="g.home_cn || g.home_en"></div>
                                             <div x-text="g.away_cn || g.away_en"></div>
                                         </td>
-                                        <td class="score-cell"><span x-text="(g.home_scores[0] ?? '-')"></span><span x-text="(g.away_scores[0] ?? '-')"></span></td>
-                                        <td class="score-cell"><span x-text="(g.home_scores[1] ?? '-')"></span><span x-text="(g.away_scores[1] ?? '-')"></span></td>
-                                        <td class="score-cell"><span x-text="(g.home_scores[2] ?? '-')"></span><span x-text="(g.away_scores[2] ?? '-')"></span></td>
-                                        <td class="score-cell"><span x-text="(g.home_scores[3] ?? '-')"></span><span x-text="(g.away_scores[3] ?? '-')"></span></td>
-                                        <td class="total-cell"><span class="total-home" x-text="g.home_total"></span><span class="total-away" x-text="g.away_total"></span></td>
+                                        <td class="score-cell"><span x-text="(g.home_scores[0] ?? '-')"></span><span x-text="(g.away_scores[0] ?? '-')"></span><span class="q-total" x-text="(g.home_scores[0] != null && g.away_scores[0] != null) ? (g.home_scores[0] + g.away_scores[0]) : ''"></span></td>
+                                        <td class="score-cell"><span x-text="(g.home_scores[1] ?? '-')"></span><span x-text="(g.away_scores[1] ?? '-')"></span><span class="q-total" x-text="(g.home_scores[1] != null && g.away_scores[1] != null) ? (g.home_scores[1] + g.away_scores[1]) : ''"></span></td>
+                                        <td class="score-cell"><span x-text="(g.home_scores[2] ?? '-')"></span><span x-text="(g.away_scores[2] ?? '-')"></span><span class="q-total" x-text="(g.home_scores[2] != null && g.away_scores[2] != null) ? (g.home_scores[2] + g.away_scores[2]) : ''"></span></td>
+                                        <td class="score-cell"><span x-text="(g.home_scores[3] ?? '-')"></span><span x-text="(g.away_scores[3] ?? '-')"></span><span class="q-total" x-text="(g.home_scores[3] != null && g.away_scores[3] != null) ? (g.home_scores[3] + g.away_scores[3]) : ''"></span></td>
+                                        <td class="total-cell"><span class="total-home" x-text="g.home_total"></span><span class="total-away" x-text="g.away_total"></span><span class="q-total" x-text="g.home_total + g.away_total"></span></td>
                                     </tr>
                                 </template>
                             </tbody>
@@ -334,5 +334,6 @@ function ruleManager() {
 .total-cell { text-align: center; line-height: 1.6; }
 .total-home { display: block; font-weight: bold; font-size: 14px; color: #222; }
 .total-away { display: block; font-weight: bold; font-size: 14px; color: #555; }
+.q-total { display: block; font-size: 11px; color: #1a73e8; font-weight: bold; }
 </style>
 {% endblock %}
