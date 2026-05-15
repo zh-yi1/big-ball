@@ -39,15 +39,26 @@ def tr_team(name: str) -> str:
 
 
 def get_bilingual_team(home: str, away: str) -> tuple[str, str]:
-    """返回双语队名 (中文/EN, 中文/EN)"""
+    """返回双语队名 (中文/EN, 中文/EN) — 飞书用"""
     cache = _get_cache()
     home_cn = cache.get("team", {}).get(home, "")
     away_cn = cache.get("team", {}).get(away, "")
-    if home_cn:
+    if home_cn and home_cn != home:
         home = f"{home_cn} / {home}"
-    if away_cn:
+    if away_cn and away_cn != away:
         away = f"{away_cn} / {away}"
     return home, away
+
+
+def get_team_parts(name: str) -> tuple[str, str]:
+    """拆分中英队名 (cn, en) — UI 用"""
+    if not name:
+        return "", ""
+    cache = _get_cache()
+    cn = cache.get("team", {}).get(name, "")
+    if cn and cn != name:
+        return cn, name
+    return name, ""
 
 
 def get_bilingual_league(name: str) -> str:
