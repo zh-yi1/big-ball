@@ -134,7 +134,7 @@
             </form>
             <form method="post" action="/settings/poll-interval" style="display:inline; display:flex; gap:8px; align-items:center;">
                 <label style="font-size:13px; color:#666;">轮询间隔(秒):</label>
-                <input type="number" name="seconds" value="60" min="30" style="width:80px; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+                <input type="number" name="seconds" value="{{ poll_interval }}" min="30" style="width:80px; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
                 <button class="btn btn-sm btn-outline">保存</button>
             </form>
         </div>

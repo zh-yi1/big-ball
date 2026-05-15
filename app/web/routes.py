@@ -25,14 +25,17 @@ SPORT_LABELS = {
 
 @router.get("/")
 def index(request: Request, db: Session = Depends(get_db)):
+    from app.config import get_datasource_config
     rules = db.query(Rule).order_by(Rule.updated_at.desc()).all()
     history = db.query(MatchHistory).order_by(MatchHistory.matched_at.desc()).limit(50).all()
+    interval = get_datasource_config().get("poll_interval_seconds", 300)
     return request.app.state.templates.TemplateResponse("index.html", {
         "request": request,
         "rules": rules,
         "history": history,
         "rule_type_labels": RULE_TYPE_LABELS,
         "sport_labels": SPORT_LABELS,
+        "poll_interval": interval,
     })
 
 
@@ -157,16 +160,63 @@ async def api_today_games(request: Request, refresh: bool = False):
 
 @router.post("/detect-now")
 def detect_now(db: Session = Depends(get_db)):
-    """手动触发一次检测"""
+    """手动触发一次检测：拉取今日所有比赛，逐场匹配规则，命中推飞书"""
     from app.config import get_datasource_config
     from app.datasource.factory import create_datasource
-    from app.rule_engine.engine import run_detection
-
-    config = get_datasource_config()
-    ds = create_datasource(config["type"])
+    from app.datasource.base import GameDetail
+    from app.rule_engine.matchers import check_rule
+    from app.notifier.feishu import send_notification
+    from datetime import datetime
 
     async def _run():
-        await run_detection(db, ds)
+        config = get_datasource_config()
+        ds = create_datasource(config["type"])
+        rules = db.query(Rule).filter(Rule.enabled == True).all()
+        if not rules:
+            return
+
+        try:
+            result = await ds.get_today_games(force=True)
+        except Exception:
+            return
+
+        hits = 0
+        for sport, games in result.items():
+            for g in games:
+                if g.status == "已结束":
+                    continue
+                detail = GameDetail(
+                    id=g.id, sport_type=g.sport_type,
+                    home_team=g.home_team, away_team=g.away_team,
+                    status=g.status, current_quarter=g.current_quarter,
+                    home_total=g.home_total, away_total=g.away_total,
+                    home_scores=getattr(g, '_home_scores', []) or [],
+                    away_scores=getattr(g, '_away_scores', []) or [],
+                    raw_data={},
+                )
+                for rule in rules:
+                    if rule.sport_type != g.sport_type:
+                        continue
+                    if check_rule(detail, rule):
+                        exists = db.query(MatchHistory).filter(
+                            MatchHistory.rule_id == rule.id,
+                            MatchHistory.game_id == g.id,
+                        ).first()
+                        if not exists:
+                            db.add(MatchHistory(
+                                rule_id=rule.id, game_id=g.id,
+                                home_team=g.home_team, away_team=g.away_team,
+                                home_score=g.home_total, away_score=g.away_total,
+                                detail=json.dumps({
+                                    "home_scores": detail.home_scores,
+                                    "away_scores": detail.away_scores,
+                                    "status": g.status,
+                                }, ensure_ascii=False),
+                                matched_at=datetime.utcnow(),
+                            ))
+                            db.commit()
+                            await send_notification(rule, detail)
+                            hits += 1
 
     asyncio.create_task(_run())
     return RedirectResponse("/", status_code=303)

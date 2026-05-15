@@ -41,4 +41,13 @@ def start_scheduler():
 
 def update_poll_interval(seconds: int):
     scheduler.reschedule_job("detection", trigger="interval", seconds=seconds)
+    import yaml, os
+    import app.config as _cfg
+    config_path = os.environ.get("CONFIG_PATH", "config.yaml")
+    with open(config_path, "r") as f:
+        cfg = yaml.safe_load(f)
+    cfg.setdefault("datasource", {})["poll_interval_seconds"] = seconds
+    with open(config_path, "w") as f:
+        yaml.dump(cfg, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+    _cfg._config_cache = None  # 清缓存，下次读取重新加载
     logger.info(f"Poll interval updated to {seconds}s")
