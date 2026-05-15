@@ -18,8 +18,10 @@
                 <!-- 篮球 -->
                 <template x-if="todayBasketball.length > 0">
                     <div style="margin-bottom:12px;">
-                        <h3 style="font-size:14px; color:#555; margin-bottom:6px;">🏀 篮球 <span x-text="'(' + todayBasketball.length + '场)'"></span></h3>
-                        <table>
+                        <h3 style="font-size:14px; color:#555; margin-bottom:6px; cursor:pointer; user-select:none;" @click="showBasketball = !showBasketball">
+                            <span x-text="showBasketball ? '▼' : '▶'"></span> 🏀 篮球 <span x-text="'(' + todayBasketball.length + '场)'"></span>
+                        </h3>
+                        <table x-show="showBasketball">
                             <thead><tr><th>时间</th><th>联赛</th><th>主队</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>OT</th><th>总分</th><th>客队</th><th>状态</th></tr></thead>
                             <tbody>
                                 <template x-for="g in todayBasketball" :key="g.id">
@@ -44,8 +46,10 @@
                 <!-- 足球 -->
                 <template x-if="todayFootball.length > 0">
                     <div>
-                        <h3 style="font-size:14px; color:#555; margin-bottom:6px;">⚽ 足球 <span x-text="'(' + todayFootball.length + '场)'"></span></h3>
-                        <table>
+                        <h3 style="font-size:14px; color:#555; margin-bottom:6px; cursor:pointer; user-select:none;" @click="showFootball = !showFootball">
+                            <span x-text="showFootball ? '▼' : '▶'"></span> ⚽ 足球 <span x-text="'(' + todayFootball.length + '场)'"></span>
+                        </h3>
+                        <table x-show="showFootball">
                             <thead><tr><th>时间</th><th>联赛</th><th>主队</th><th>半场</th><th>总分</th><th>客队</th><th>状态</th></tr></thead>
                             <tbody>
                                 <template x-for="g in todayFootball" :key="g.id">
@@ -231,6 +235,8 @@ function ruleManager() {
         todaySource: '',
         todayBasketball: [],
         todayFootball: [],
+        showBasketball: false,  // 默认收起
+        showFootball: false,    // 默认收起
         async loadToday(forceRefresh = false) {
             try {
                 const url = forceRefresh ? '/api/today?refresh=true' : '/api/today';
