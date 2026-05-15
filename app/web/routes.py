@@ -159,28 +159,27 @@ async def api_today_games(request: Request, refresh: bool = False):
 
 
 @router.post("/detect-now")
-def detect_now(db: Session = Depends(get_db)):
+async def detect_now(db: Session = Depends(get_db)):
     """手动触发一次检测：拉取今日所有比赛，逐场匹配规则，命中推飞书"""
     from app.config import get_datasource_config
     from app.datasource.factory import create_datasource
     from app.datasource.base import GameDetail
     from app.rule_engine.matchers import check_rule
     from app.notifier.feishu import send_notification
+    from app.database import SessionLocal
     from datetime import datetime
 
-    async def _run():
+    _db = SessionLocal()
+    try:
         config = get_datasource_config()
         ds = create_datasource(config["type"])
-        rules = db.query(Rule).filter(Rule.enabled == True).all()
-        if not rules:
-            return
+        rules = _db.query(Rule).filter(Rule.enabled == True).all()
 
         try:
             result = await ds.get_today_games(force=True)
         except Exception:
-            return
+            return RedirectResponse("/", status_code=303)
 
-        hits = 0
         for sport, games in result.items():
             for g in games:
                 if g.status == "已结束":
@@ -198,12 +197,12 @@ def detect_now(db: Session = Depends(get_db)):
                     if rule.sport_type != g.sport_type:
                         continue
                     if check_rule(detail, rule):
-                        exists = db.query(MatchHistory).filter(
+                        exists = _db.query(MatchHistory).filter(
                             MatchHistory.rule_id == rule.id,
                             MatchHistory.game_id == g.id,
                         ).first()
                         if not exists:
-                            db.add(MatchHistory(
+                            _db.add(MatchHistory(
                                 rule_id=rule.id, game_id=g.id,
                                 home_team=g.home_team, away_team=g.away_team,
                                 home_score=g.home_total, away_score=g.away_total,
@@ -214,9 +213,9 @@ def detect_now(db: Session = Depends(get_db)):
                                 }, ensure_ascii=False),
                                 matched_at=datetime.utcnow(),
                             ))
-                            db.commit()
+                            _db.commit()
                             await send_notification(rule, detail)
-                            hits += 1
+    finally:
+        _db.close()
 
-    asyncio.create_task(_run())
     return RedirectResponse("/", status_code=303)
