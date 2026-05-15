@@ -70,11 +70,13 @@ async def send_notification(rule, game_detail) -> bool:
 
 
 def _format_quarters(game_detail) -> str:
+    """每节显示两队分数 + 节总分"""
     parts = []
     for i, (h, a) in enumerate(zip(game_detail.home_scores, game_detail.away_scores)):
-        parts.append(f"Q{i+1} {h}-{a}")
-    parts.append(f"总分 {game_detail.home_total}-{game_detail.away_total}")
-    return ", ".join(parts)
+        total = h + a
+        parts.append(f"Q{i+1}: {h}-{a} (节总{total})")
+    parts.append(f"全场 {game_detail.home_total}-{game_detail.away_total}")
+    return "\n".join(parts)
 
 
 def _format_params(rule_type, params) -> str:
@@ -104,20 +106,24 @@ def _format_sequence_params(params) -> str:
 
 
 def get_parity_pattern(game_detail) -> str:
-    """根据 Q1/Q2/Q3 奇偶性返回模式标签"""
+    """根据 Q1/Q2/Q3 两队节总分的奇偶性返回模式标签"""
     scores = game_detail.home_scores
     if len(scores) < 3:
         return ""
-    q1_odd = (scores[0] % 2 == 1) and (game_detail.away_scores[0] % 2 == 1)
-    q2_odd = (scores[1] % 2 == 1) and (game_detail.away_scores[1] % 2 == 1)
-    q3_odd = (scores[2] % 2 == 1) and (game_detail.away_scores[2] % 2 == 1)
+    t1 = scores[0] + game_detail.away_scores[0]
+    t2 = scores[1] + game_detail.away_scores[1]
+    t3 = scores[2] + game_detail.away_scores[2]
+    q1_odd = t1 % 2 == 1
+    q2_odd = t2 % 2 == 1
+    q3_odd = t3 % 2 == 1
     if q1_odd and q2_odd and q3_odd:
-        return "【单单单】Q1单 Q2单 Q3单"
+        return "【单单单】Q1总{}(单) Q2总{}(单) Q3总{}(单)".format(t1, t2, t3)
     elif q1_odd and q2_odd and not q3_odd:
-        return "【单单双】Q1单 Q2单 Q3双"
+        return "【单单双】Q1总{}(单) Q2总{}(单) Q3总{}(双)".format(t1, t2, t3)
     else:
         parts = []
-        for i, (h, a) in enumerate(zip(scores[:3], game_detail.away_scores[:3])):
-            parity = "单" if (h % 2 == 1 and a % 2 == 1) else "双"
-            parts.append(f"Q{i+1}{parity}({h}-{a})")
-        return "Q1Q2Q3: " + " ".join(parts)
+        for i in range(3):
+            total = scores[i] + game_detail.away_scores[i]
+            parity = "单" if total % 2 == 1 else "双"
+            parts.append(f"Q{i+1}总{total}({parity})")
+        return " ".join(parts)

@@ -3,21 +3,18 @@ from app.datasource.base import GameDetail
 
 
 def match_quarter_parity(game: GameDetail, params: dict) -> bool:
-    """检查指定节次得分奇偶性"""
+    """检查指定节次两队总得分的奇偶性（按总分算单双）"""
     quarters = params.get("quarters", [])
     parity = params.get("parity", "odd")
     for q in quarters:
         idx = q - 1
         if idx >= len(game.home_scores) or idx >= len(game.away_scores):
             return False
-        home_score = game.home_scores[idx]
-        away_score = game.away_scores[idx]
-        if parity == "odd":
-            if home_score % 2 == 0 or away_score % 2 == 0:
-                return False
-        else:
-            if home_score % 2 == 1 or away_score % 2 == 1:
-                return False
+        total = game.home_scores[idx] + game.away_scores[idx]
+        if parity == "odd" and total % 2 == 0:
+            return False
+        if parity == "even" and total % 2 == 1:
+            return False
     return True
 
 
@@ -59,11 +56,7 @@ def match_quarter_diff(game: GameDetail, params: dict) -> bool:
 
 
 def match_quarter_sequence(game: GameDetail, params: dict) -> bool:
-    """多节次序列匹配，达到触发节时通知
-    conditions: [{quarter: 1, parity: "odd"}, {quarter: 2, parity: "odd"}]
-    trigger_quarter: 4  — 比赛进入该节时触发通知
-    label_q3  : true   — 通知中显示 Q3 单双分类
-    """
+    """多节次序列匹配（按两队节总分算单双），达到触发节时通知"""
     conditions = params.get("conditions", [])
     trigger_quarter = params.get("trigger_quarter", 4)
 
@@ -72,10 +65,10 @@ def match_quarter_sequence(game: GameDetail, params: dict) -> bool:
         parity = cond.get("parity", "odd")
         if q >= len(game.home_scores) or q >= len(game.away_scores):
             return False
-        h, a = game.home_scores[q], game.away_scores[q]
-        if parity == "odd" and (h % 2 == 0 or a % 2 == 0):
+        total = game.home_scores[q] + game.away_scores[q]
+        if parity == "odd" and total % 2 == 0:
             return False
-        if parity == "even" and (h % 2 == 1 or a % 2 == 1):
+        if parity == "even" and total % 2 == 1:
             return False
 
     if game.current_quarter < trigger_quarter:
