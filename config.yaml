@@ -1,0 +1,16 @@
+datasource:
+  type: "apisports"      # apisports / espn / dongqiudi / hupu / leisu
+
+  poll_interval_seconds: 360
+
+feishu:
+  webhook_url: "https://open.feishu.cn/open-apis/bot/v2/hook/0f9390fa-9079-4556-bffd-ca85c09de287"
+
+apisports:
+  # 多个 key 轮询使用，一个用完自动切换下一个
+  keys:
+    - "4e0a1f29a4b89caa3ed20ffc49b55a97"
+    # - "your-second-key-here"
+
+juhe_api:
+  key: ""                # 聚合数据 API key（仅 API 模式需要）

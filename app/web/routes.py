@@ -1,0 +1,170 @@
+import json
+import asyncio
+from datetime import datetime
+from fastapi import APIRouter, Request, Depends, Form
+from fastapi.responses import RedirectResponse
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.models import Rule, MatchHistory
+from app.scheduler import update_poll_interval
+
+router = APIRouter()
+
+RULE_TYPE_LABELS = {
+    "quarter_parity": "节次得分奇偶",
+    "total_score": "总得分比较",
+    "quarter_diff": "单节分差",
+    "quarter_sequence": "多节序列匹配",
+}
+
+SPORT_LABELS = {
+    "basketball": "🏀 篮球",
+    "football": "⚽ 足球",
+}
+
+
+@router.get("/")
+def index(request: Request, db: Session = Depends(get_db)):
+    rules = db.query(Rule).order_by(Rule.updated_at.desc()).all()
+    history = db.query(MatchHistory).order_by(MatchHistory.matched_at.desc()).limit(50).all()
+    return request.app.state.templates.TemplateResponse("index.html", {
+        "request": request,
+        "rules": rules,
+        "history": history,
+        "rule_type_labels": RULE_TYPE_LABELS,
+        "sport_labels": SPORT_LABELS,
+    })
+
+
+@router.post("/rules/add")
+def add_rule(
+    name: str = Form(...),
+    sport_type: str = Form(...),
+    rule_type: str = Form(...),
+    params_json: str = Form(default="{}"),
+    enabled: bool = Form(default=True),
+    db: Session = Depends(get_db),
+):
+    try:
+        json.loads(params_json)
+    except json.JSONDecodeError:
+        params_json = "{}"
+    rule = Rule(
+        name=name,
+        sport_type=sport_type,
+        rule_type=rule_type,
+        params=params_json,
+        enabled=enabled,
+    )
+    db.add(rule)
+    db.commit()
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/rules/{rule_id}/edit")
+def edit_rule(
+    rule_id: int,
+    name: str = Form(...),
+    sport_type: str = Form(...),
+    rule_type: str = Form(...),
+    params_json: str = Form(default="{}"),
+    enabled: bool = Form(default=True),
+    db: Session = Depends(get_db),
+):
+    rule = db.query(Rule).filter(Rule.id == rule_id).first()
+    if rule:
+        rule.name = name
+        rule.sport_type = sport_type
+        rule.rule_type = rule_type
+        rule.params = params_json
+        rule.enabled = enabled
+        rule.updated_at = datetime.utcnow()
+        db.commit()
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/rules/{rule_id}/toggle")
+def toggle_rule(rule_id: int, db: Session = Depends(get_db)):
+    rule = db.query(Rule).filter(Rule.id == rule_id).first()
+    if rule:
+        rule.enabled = not rule.enabled
+        rule.updated_at = datetime.utcnow()
+        db.commit()
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/rules/{rule_id}/delete")
+def delete_rule(rule_id: int, db: Session = Depends(get_db)):
+    rule = db.query(Rule).filter(Rule.id == rule_id).first()
+    if rule:
+        db.delete(rule)
+        db.commit()
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/settings/poll-interval")
+def set_poll_interval(seconds: int = Form(...)):
+    update_poll_interval(seconds)
+    return RedirectResponse("/", status_code=303)
+
+
+def _fmt_time(raw: str) -> str:
+    """提取 HH:MM，数据源已转为北京时间"""
+    if not raw:
+        return ""
+    # raw is already "HH:MM" or "YYYY-MM-DD HH:MM:SS"
+    parts = raw.strip().split(" ")
+    time_part = parts[-1] if parts else raw
+    return time_part[:5] if len(time_part) >= 5 else time_part
+
+
+@router.get("/api/today")
+async def api_today_games(request: Request, refresh: bool = False):
+    """返回今日赛程 JSON。refresh=true 时跳过缓存。"""
+    from app.config import get_datasource_config
+    from app.datasource.factory import create_datasource
+
+    config = get_datasource_config()
+    ds = create_datasource(config["type"])
+    try:
+        result = await ds.get_today_games(force=refresh)
+    except Exception:
+        result = {"basketball": [], "football": []}
+
+    output = {}
+    for sport, games in result.items():
+        output[sport] = [
+            {
+                "id": g.id,
+                "home_team": g.home_team,
+                "away_team": g.away_team,
+                "status": g.status,
+                "home_total": g.home_total,
+                "away_total": g.away_total,
+                "start_time": _fmt_time(g.start_time),
+                "start_time_full": g.start_time,
+                "league": g.league,
+                "current_quarter": g.current_quarter,
+            }
+            for g in games
+            if g.status != "已结束"  # 不显示已结束的比赛
+        ]
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"datasource": config["type"], "games": output})
+
+
+@router.post("/detect-now")
+def detect_now(db: Session = Depends(get_db)):
+    """手动触发一次检测"""
+    from app.config import get_datasource_config
+    from app.datasource.factory import create_datasource
+    from app.rule_engine.engine import run_detection
+
+    config = get_datasource_config()
+    ds = create_datasource(config["type"])
+
+    async def _run():
+        await run_detection(db, ds)
+
+    asyncio.create_task(_run())
+    return RedirectResponse("/", status_code=303)

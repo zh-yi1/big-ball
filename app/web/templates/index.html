@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div x-data="ruleManager()" x-init="loadToday()">
+    <div class="flex-between" style="margin-bottom: 16px;">
+        <h1>🏟️ 球赛实时监控</h1>
+        <button class="btn btn-primary" @click="openAdd()">+ 新增规则</button>
+    </div>
+
+    <!-- 今日赛程 -->
+    <div class="card" x-show="todayLoaded">
+        <div class="flex-between" style="margin-bottom:12px;">
+            <h2>📅 今日赛程 <span class="text-muted" x-text="'(' + todaySource + ')'"></span></h2>
+            <button class="btn btn-sm btn-outline" @click="loadToday(true)">🔄 刷新</button>
+        </div>
+        <template x-if="todayBasketball.length > 0 || todayFootball.length > 0">
+            <div>
+                <!-- 篮球 -->
+                <template x-if="todayBasketball.length > 0">
+                    <div style="margin-bottom:12px;">
+                        <h3 style="font-size:14px; color:#555; margin-bottom:6px;">🏀 篮球 <span x-text="'(' + todayBasketball.length + '场)'"></span></h3>
+                        <table>
+                            <thead><tr><th>时间</th><th>联赛</th><th>主队</th><th>比分</th><th>客队</th><th>状态</th></tr></thead>
+                            <tbody>
+                                <template x-for="g in todayBasketball" :key="g.id">
+                                    <tr>
+                                        <td x-text="g.start_time || '-'" style="font-size:12px; color:#888;"></td>
+                                        <td><span class="tag" x-text="g.league"></span></td>
+                                        <td x-text="g.home_team"></td>
+                                        <td><span x-text="g.home_total + ' - ' + g.away_total" style="font-weight:bold;"></span></td>
+                                        <td x-text="g.away_team"></td>
+                                        <td><span class="tag" :class="g.status === '进行中' ? 'tag-success' : 'tag-muted'" x-text="g.status"></span></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </template>
+                <!-- 足球 -->
+                <template x-if="todayFootball.length > 0">
+                    <div>
+                        <h3 style="font-size:14px; color:#555; margin-bottom:6px;">⚽ 足球 <span x-text="'(' + todayFootball.length + '场)'"></span></h3>
+                        <table>
+                            <thead><tr><th>时间</th><th>联赛</th><th>主队</th><th>比分</th><th>客队</th><th>状态</th></tr></thead>
+                            <tbody>
+                                <template x-for="g in todayFootball" :key="g.id">
+                                    <tr>
+                                        <td x-text="g.start_time || '-'" style="font-size:12px; color:#888;"></td>
+                                        <td><span class="tag" x-text="g.league"></span></td>
+                                        <td x-text="g.home_team"></td>
+                                        <td><span x-text="g.home_total + ' - ' + g.away_total" style="font-weight:bold;"></span></td>
+                                        <td x-text="g.away_team"></td>
+                                        <td><span class="tag" :class="g.status === '进行中' ? 'tag-success' : 'tag-muted'" x-text="g.status"></span></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </template>
+            </div>
+        </template>
+        <template x-if="todayBasketball.length === 0 && todayFootball.length === 0">
+            <div class="empty">今日暂无比赛数据</div>
+        </template>
+    </div>
+
+    <!-- 规则列表 -->
+    <div class="card">
+        <h2>监控规则</h2>
+        {% if rules %}
+        <table>
+            <thead>
+                <tr>
+                    <th>名称</th>
+                    <th>球类</th>
+                    <th>规则类型</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rule in rules %}
+                <tr>
+                    <td>{{ rule.name }}</td>
+                    <td>{{ sport_labels.get(rule.sport_type, rule.sport_type) }}</td>
+                    <td>{{ rule_type_labels.get(rule.rule_type, rule.rule_type) }}</td>
+                    <td>
+                        {% if rule.enabled %}
+                        <span class="tag tag-success">启用</span>
+                        {% else %}
+                        <span class="tag tag-muted">禁用</span>
+                        {% endif %}
+                    </td>
+                    <td class="actions">
+                        <form method="post" action="/rules/{{ rule.id }}/toggle" style="display:inline">
+                            <button class="btn btn-sm btn-outline">{{ '禁用' if rule.enabled else '启用' }}</button>
+                        </form>
+                        <button class="btn btn-sm btn-outline" @click="openEdit($el)"
+                            data-rule-id="{{ rule.id }}"
+                            data-rule-name="{{ rule.name }}"
+                            data-rule-sport="{{ rule.sport_type }}"
+                            data-rule-type="{{ rule.rule_type }}"
+                            data-rule-params="{{ rule.params }}"
+                            data-rule-enabled="{{ rule.enabled | lower }}">编辑</button>
+                        <button class="btn btn-sm btn-outline" @click="deleteRule({{ rule.id }})">删除</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">暂无规则，点击右上角"新增规则"添加</div>
+        {% endif %}
+    </div>
+
+    <!-- 操作面板 -->
+    <div class="card">
+        <h2>操作</h2>
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+            <form method="post" action="/detect-now" style="display:inline">
+                <button class="btn btn-outline">🔍 手动检测一次</button>
+            </form>
+            <form method="post" action="/settings/poll-interval" style="display:inline; display:flex; gap:8px; align-items:center;">
+                <label style="font-size:13px; color:#666;">轮询间隔(秒):</label>
+                <input type="number" name="seconds" value="60" min="30" style="width:80px; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+                <button class="btn btn-sm btn-outline">保存</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 匹配历史 -->
+    <div class="card">
+        <h2>匹配历史（最近 50 条）</h2>
+        {% if history %}
+        <table>
+            <thead>
+                <tr>
+                    <th>时间</th>
+                    <th>比赛</th>
+                    <th>比分</th>
+                    <th>命中规则</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in history %}
+                <tr>
+                    <td>{{ h.matched_at.strftime('%m-%d %H:%M') }}</td>
+                    <td>{{ h.home_team }} vs {{ h.away_team }}</td>
+                    <td>{{ h.home_score }} - {{ h.away_score }}</td>
+                    <td>#{{ h.rule_id }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">暂无匹配记录</div>
+        {% endif %}
+    </div>
+
+    <!-- 编辑弹窗 -->
+    <div class="modal-overlay" x-show="showModal" @click.self="showModal=false" x-cloak>
+        <div class="modal">
+            <h2 x-text="isEdit ? '编辑规则' : '新增规则'"></h2>
+            <form :action="formAction" method="post">
+                <div class="form-group">
+                    <label>规则名称</label>
+                    <input type="text" name="name" x-model="form.name" required>
+                </div>
+                <div class="form-group">
+                    <label>球类</label>
+                    <select name="sport_type" x-model="form.sport_type">
+                        <option value="basketball">🏀 篮球</option>
+                        <option value="football">⚽ 足球</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>规则类型</label>
+                    <select name="rule_type" x-model="form.rule_type" @change="onRuleTypeChange()">
+                        <option value="quarter_parity">节次得分奇偶</option>
+                        <option value="total_score">总得分比较</option>
+                        <option value="quarter_diff">单节分差</option>
+                        <option value="quarter_sequence">多节序列匹配</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>参数 (JSON)</label>
+                    <textarea name="params_json" rows="4" x-model="form.params_json"></textarea>
+                    <div class="params-help" x-text="paramsHint"></div>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="enabled" value="true" x-model="form.enabled" style="margin-right:6px;">
+                        启用
+                    </label>
+                </div>
+                <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px;">
+                    <button type="button" class="btn btn-outline" @click="showModal=false">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 删除确认 -->
+    <form id="delete-form" method="post" style="display:none;"></form>
+</div>
+
+<script>
+function ruleManager() {
+    return {
+        showModal: false,
+        isEdit: false,
+        editId: null,
+        form: {
+            name: '',
+            sport_type: 'basketball',
+            rule_type: 'quarter_parity',
+            params_json: '{"quarters": [1, 2], "parity": "odd"}',
+            enabled: true,
+        },
+        // Today's games
+        todayLoaded: false,
+        todaySource: '',
+        todayBasketball: [],
+        todayFootball: [],
+        async loadToday(forceRefresh = false) {
+            try {
+                const url = forceRefresh ? '/api/today?refresh=true' : '/api/today';
+                const resp = await fetch(url);
+                const data = await resp.json();
+                this.todaySource = data.datasource || '';
+                this.todayBasketball = (data.games && data.games.basketball) || [];
+                this.todayFootball = (data.games && data.games.football) || [];
+            } catch (e) {
+                console.error('Failed to load today games:', e);
+                this.todayBasketball = [];
+                this.todayFootball = [];
+            }
+            this.todayLoaded = true;
+        },
+        get formAction() {
+            return this.isEdit ? `/rules/${this.editId}/edit` : '/rules/add';
+        },
+        get paramsHint() {
+            const hints = {
+                'quarter_parity': '例: {"quarters": [1, 2], "parity": "odd"}  — odd=单数 even=双数',
+                'total_score': '例: {"operator": ">", "value": 200}  — operator: > >= < <= =',
+                'quarter_diff': '例: {"quarter": 1, "operator": ">", "value": 5}',
+                'quarter_sequence': '例: {"conditions":[{"quarter":1,"parity":"odd"},{"quarter":2,"parity":"odd"}],"trigger_quarter":4}',
+            };
+            return hints[this.form.rule_type] || '';
+        },
+        onRuleTypeChange() {
+            const defaults = {
+                'quarter_parity': '{"quarters": [1, 2], "parity": "odd"}',
+                'total_score': '{"operator": ">", "value": 200}',
+                'quarter_diff': '{"quarter": 1, "operator": ">", "value": 5}',
+                'quarter_sequence': '{"conditions":[{"quarter":1,"parity":"odd"},{"quarter":2,"parity":"odd"}],"trigger_quarter":4}',
+            };
+            if (!this.isEdit) {
+                this.form.params_json = defaults[this.form.rule_type] || '{}';
+            }
+        },
+        openAdd() {
+            this.isEdit = false;
+            this.editId = null;
+            this.form = {
+                name: '',
+                sport_type: 'basketball',
+                rule_type: 'quarter_parity',
+                params_json: '{"quarters": [1, 2], "parity": "odd"}',
+                enabled: true,
+            };
+            this.showModal = true;
+        },
+        openEdit(el) {
+            this.isEdit = true;
+            this.editId = parseInt(el.dataset.ruleId);
+            this.form = {
+                name: el.dataset.ruleName,
+                sport_type: el.dataset.ruleSport,
+                rule_type: el.dataset.ruleType,
+                params_json: JSON.stringify(JSON.parse(el.dataset.ruleParams), null, 2),
+                enabled: el.dataset.ruleEnabled === 'true',
+            };
+            this.showModal = true;
+        },
+        deleteRule(id) {
+            if (confirm('确定删除该规则？')) {
+                const form = document.getElementById('delete-form');
+                form.action = `/rules/${id}/delete`;
+                form.submit();
+            }
+        },
+    };
+}
+</script>
+
+<style>
+[x-cloak] { display: none !important; }
+</style>
+{% endblock %}

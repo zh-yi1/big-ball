@@ -1,0 +1,44 @@
+import asyncio
+import logging
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from app.database import SessionLocal
+from app.config import get_datasource_config
+from app.datasource.factory import create_datasource
+from app.rule_engine.engine import run_detection
+
+logger = logging.getLogger(__name__)
+scheduler = AsyncIOScheduler()
+
+
+def _get_poll_interval():
+    return get_datasource_config().get("poll_interval_seconds", 60)
+
+
+async def _detection_job():
+    config = get_datasource_config()
+    ds = create_datasource(config["type"])
+    db = SessionLocal()
+    try:
+        await run_detection(db, ds)
+    except Exception as e:
+        logger.exception(f"Detection job failed: {e}")
+    finally:
+        db.close()
+
+
+def start_scheduler():
+    interval = _get_poll_interval()
+    scheduler.add_job(
+        _detection_job,
+        "interval",
+        seconds=interval,
+        id="detection",
+        replace_existing=True,
+    )
+    scheduler.start()
+    logger.info(f"Scheduler started, poll interval: {interval}s")
+
+
+def update_poll_interval(seconds: int):
+    scheduler.reschedule_job("detection", trigger="interval", seconds=seconds)
+    logger.info(f"Poll interval updated to {seconds}s")
