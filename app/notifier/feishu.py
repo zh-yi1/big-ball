@@ -34,9 +34,9 @@ async def send_notification(rule, game_detail) -> bool:
     ]
 
     if rule.rule_type == "quarter_sequence":
-        category = get_q3_category(game_detail)
-        if category:
-            lines.append(f"**分类**：{category}")
+        pattern = get_parity_pattern(game_detail)
+        if pattern:
+            lines.append(f"**模式**：{pattern}")
 
     lines.append(f"**状态**：{game_detail.status}")
     lines.append(f"**时间**：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -101,15 +101,21 @@ def _format_sequence_params(params) -> str:
     return f"{'、'.join(parts)} → Q{params.get('trigger_quarter', 4)}时通知"
 
 
-def get_q3_category(game_detail) -> str:
-    """根据 Q3 奇偶性返回分类标签"""
-    if len(game_detail.home_scores) < 3 or len(game_detail.away_scores) < 3:
+def get_parity_pattern(game_detail) -> str:
+    """根据 Q1/Q2/Q3 奇偶性返回模式标签"""
+    scores = game_detail.home_scores
+    if len(scores) < 3:
         return ""
-    h_q3 = game_detail.home_scores[2]
-    a_q3 = game_detail.away_scores[2]
-    if h_q3 % 2 == 0 and a_q3 % 2 == 0:
-        return "类别A: Q1单 Q2单 Q3双"
-    elif h_q3 % 2 == 1 and a_q3 % 2 == 1:
-        return "类别B: Q1单 Q2单 Q3单"
+    q1_odd = (scores[0] % 2 == 1) and (game_detail.away_scores[0] % 2 == 1)
+    q2_odd = (scores[1] % 2 == 1) and (game_detail.away_scores[1] % 2 == 1)
+    q3_odd = (scores[2] % 2 == 1) and (game_detail.away_scores[2] % 2 == 1)
+    if q1_odd and q2_odd and q3_odd:
+        return "【单单单】Q1单 Q2单 Q3单"
+    elif q1_odd and q2_odd and not q3_odd:
+        return "【单单双】Q1单 Q2单 Q3双"
     else:
-        return f"混合: Q3 {h_q3}-{a_q3}"
+        parts = []
+        for i, (h, a) in enumerate(zip(scores[:3], game_detail.away_scores[:3])):
+            parity = "单" if (h % 2 == 1 and a % 2 == 1) else "双"
+            parts.append(f"Q{i+1}{parity}({h}-{a})")
+        return "Q1Q2Q3: " + " ".join(parts)
