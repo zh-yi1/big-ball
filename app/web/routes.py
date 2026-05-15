@@ -135,18 +135,22 @@ async def api_today_games(request: Request, refresh: bool = False):
         result = {"basketball": [], "football": []}
 
     output = {}
+    from app.translator import get_bilingual_team, get_bilingual_league
     for sport, games in result.items():
         output[sport] = [
             {
                 "id": g.id,
                 "home_team": g.home_team,
                 "away_team": g.away_team,
+                "home_disp": get_bilingual_team(g.home_team, g.away_team)[0],
+                "away_disp": get_bilingual_team(g.home_team, g.away_team)[1],
                 "status": g.status,
                 "home_total": g.home_total,
                 "away_total": g.away_total,
                 "start_time": _fmt_time(g.start_time),
                 "start_time_full": g.start_time,
                 "league": g.league,
+                "league_disp": get_bilingual_league(g.league),
                 "current_quarter": g.current_quarter,
                 "home_scores": getattr(g, '_home_scores', []) or [],
                 "away_scores": getattr(g, '_away_scores', []) or [],

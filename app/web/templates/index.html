@@ -27,15 +27,15 @@
                                 <template x-for="g in todayBasketball" :key="g.id">
                                     <tr>
                                         <td x-text="g.start_time || '-'" style="font-size:12px; color:#888;"></td>
-                                        <td><span class="tag" x-text="g.league"></span></td>
-                                        <td x-text="g.home_team" style="font-size:13px;"></td>
+                                        <td><span class="tag" x-text="g.league_disp || g.league"></span></td>
+                                        <td x-text="g.home_disp || g.home_team" style="font-size:13px;"></td>
                                         <td x-text="(g.home_scores[0] ?? '-')" style="text-align:center;font-size:12px;"></td>
                                         <td x-text="(g.home_scores[1] ?? '-')" style="text-align:center;font-size:12px;"></td>
                                         <td x-text="(g.home_scores[2] ?? '-')" style="text-align:center;font-size:12px;"></td>
                                         <td x-text="(g.home_scores[3] ?? '-')" style="text-align:center;font-size:12px;"></td>
                                         <td x-text="(g.home_scores[4] ?? '-')" style="text-align:center;font-size:12px;color:#888;"></td>
                                         <td style="text-align:center;font-weight:bold;" x-text="g.home_total + ' - ' + g.away_total"></td>
-                                        <td x-text="g.away_team" style="font-size:13px;"></td>
+                                        <td x-text="g.away_disp || g.away_team" style="font-size:13px;"></td>
                                         <td><span class="tag" :class="g.status === '进行中' ? 'tag-success' : 'tag-muted'" x-text="g.status"></span></td>
                                     </tr>
                                 </template>
@@ -55,13 +55,13 @@
                                 <template x-for="g in todayFootball" :key="g.id">
                                     <tr>
                                         <td x-text="g.start_time || '-'" style="font-size:12px; color:#888;"></td>
-                                        <td><span class="tag" x-text="g.league"></span></td>
-                                        <td x-text="g.home_team" style="font-size:13px;"></td>
+                                        <td><span class="tag" x-text="g.league_disp || g.league"></span></td>
+                                        <td x-text="g.home_disp || g.home_team" style="font-size:13px;"></td>
                                         <td style="text-align:center;font-size:12px;">
                                             <span x-text="(g.home_scores[0] ?? '-') + ' - ' + (g.away_scores[0] ?? '-')"></span>
                                         </td>
                                         <td style="text-align:center;font-weight:bold;" x-text="g.home_total + ' - ' + g.away_total"></td>
-                                        <td x-text="g.away_team" style="font-size:13px;"></td>
+                                        <td x-text="g.away_disp || g.away_team" style="font-size:13px;"></td>
                                         <td><span class="tag" :class="g.status === '进行中' ? 'tag-success' : 'tag-muted'" x-text="g.status"></span></td>
                                     </tr>
                                 </template>

@@ -3,8 +3,9 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 import httpx
-from app.config import get_apisports_config
+from app.config import get_apisports_config, load_config
 from app.datasource.base import Game, GameDetail, DataSource
+from app.translator import tr_league, reload_cache
 
 logger = logging.getLogger(__name__)
 
@@ -24,63 +25,25 @@ STATUS_MAP = {
 }
 
 
-# 联赛名中英对照
-LEAGUE_CN = {
-    # 足球
-    "Premier League": "英超", "Ligue 1": "法甲", "Bundesliga": "德甲",
-    "Serie A": "意甲", "La Liga": "西甲", "Eredivisie": "荷甲",
-    "Primeira Liga": "葡超", "Super Lig": "土超", "Jupiler Pro League": "比甲",
-    "Championship": "英冠", "Ligue 2": "法乙", "Serie B": "意乙",
-    "2. Bundesliga": "德乙", "La Liga 2": "西乙", "Eerste Divisie": "荷乙",
-    "MLS": "美职联", "Saudi Pro League": "沙特联", "Primera División": "玻甲",
-    "Liga MX": "墨超", "FA Cup": "足总杯", "Copa Do Brasil": "巴西杯",
-    "UEFA Champions League": "欧冠", "UEFA Europa League": "欧联",
-    "U17 Asian Cup": "U17亚洲杯", "AFC Champions League": "亚冠",
-    "League One": "英甲", "League Two": "英乙",
-    "National League": "英议联", "Scottish Premiership": "苏超",
-    "A-League": "澳超", "CAF Champions League": "非冠",
-    "Copa Libertadores": "解放者杯", "Copa Sudamericana": "南球杯",
-    "Liga Profesional": "阿超", "Brasileirão": "巴甲",
-    "CSL": "中超", "K League 1": "韩K联", "J1 League": "日职联",
-    "J2 League": "日职乙", "A League": "澳超",
-    # 篮球
-    "NBA": "NBA", "WNBA": "WNBA", "NCAAB": "NCAA",
-    "LNB": "法篮甲", "ACB": "西篮甲", "Lega A": "意篮甲",
-    "BBL": "德篮甲", "BSN": "波多黎各BSN",
-    "NBL": "澳篮联", "MPBL": "菲律宾MPBL",
-    # 通用
-    "Super League": "超级联赛", "Superliga": "超级联赛",
-    "1. Division": "甲级联赛", "First League": "甲级联赛",
-    "Second League": "乙级联赛", "Premier Division": "超级联赛",
-    "Cup": "杯赛", "Super Cup": "超级杯",
-    "Liga Leumit": "以甲", "NB I A": "匈甲",
-    "Divizia A": "罗甲", "Energa Basket Liga": "波篮甲",
-    "Basket League": "希篮甲", "Super League Basketball": "英篮超",
-}
-
-
 class _KeyRotator:
     """API key 轮询器：一个 key 用完自动切下一个，每天重置"""
 
     def __init__(self, keys: list[str]):
         self._keys = keys
         self._idx = 0
-        self._exhausted: dict[int, float] = {}  # idx -> exhaustion time
+        self._exhausted: dict[int, float] = {}
 
     def current(self) -> str:
         return self._keys[self._idx] if self._keys else ""
 
     def mark_exhausted(self):
-        """标记当前 key 已用完，切到下一个"""
         import time
         self._exhausted[self._idx] = time.monotonic()
         logger.warning(f"Key {self._idx} exhausted, switching...")
-        # 找下一个未用完的
         for _ in range(len(self._keys)):
             self._idx = (self._idx + 1) % len(self._keys)
             if self._idx not in self._exhausted:
                 return
-        # 全部用完，重置并等待下个周期
         self._exhausted.clear()
         self._idx = 0
         logger.info("All keys exhausted, resetting rotation")
@@ -90,32 +53,22 @@ class _KeyRotator:
         t = self._exhausted.get(self._idx)
         if t is None:
             return False
-        # 24 小时后自动恢复
         if time.monotonic() - t > 86400:
             del self._exhausted[self._idx]
             return False
         return True
 
 
-def _tr(name: str) -> str:
-    """翻译联赛名，找不到返回原名"""
-    return LEAGUE_CN.get(name, name)
-
-
 class APISportsDataSource(DataSource):
-    """API-Sports 数据源 — 篮球逐节得分 + 足球海量联赛
+    """API-Sports 数据源 — 篮球逐节得分 + 足球海量联赛"""
 
-    config.yaml 配置:
-      apisports:
-        keys:
-          - "key1"
-          - "key2"
-    """
+    LIVE_STATUSES = {"第一节", "第二节", "第三节", "第四节",
+                     "上半场", "下半场", "中场休息", "进行中"}
 
     def __init__(self):
         keys = get_apisports_config().get("keys", [])
         if not keys:
-            raise RuntimeError("No API-Sports keys configured in config.yaml -> apisports.keys")
+            raise RuntimeError("No API-Sports keys configured")
         self._rotator = _KeyRotator(keys)
         self._client: Optional[httpx.AsyncClient] = None
 
@@ -129,11 +82,10 @@ class APISportsDataSource(DataSource):
         return self._client
 
     async def _fetch(self, url: str) -> dict:
-        """带 key 轮询的请求"""
         last_err = None
         for _ in range(len(self._rotator._keys)):
             if self._rotator.is_exhausted():
-                self._rotator.mark_exhausted()  # advance to next
+                self._rotator.mark_exhausted()
                 continue
             try:
                 client = self._get_client()
@@ -142,15 +94,11 @@ class APISportsDataSource(DataSource):
                     data = resp.json()
                     errors = data.get("errors", [])
                     if errors:
-                        # 检查是否是配额错误
                         err_text = str(errors).lower()
                         if any(w in err_text for w in ("quota", "rate", "limit", "exceeded", "requests")):
-                            logger.warning(f"Key exhausted: {errors}")
                             self._rotator.mark_exhausted()
                             continue
-                        else:
-                            logger.warning(f"API error: {errors}")
-                            return data  # 非配额错误，正常返回
+                        return data
                     return data
                 elif resp.status_code == 429:
                     self._rotator.mark_exhausted()
@@ -185,12 +133,40 @@ class APISportsDataSource(DataSource):
                 return []
 
         bb, fb = await asyncio.gather(fetch_bb(), fetch_fb())
+        # 后台异步翻译缺失的名称
+        self._schedule_translation(bb + fb)
         return {"basketball": bb, "football": fb}
 
-    # ── 实时比赛 ──────────────────────────────
+    def _schedule_translation(self, games: list[Game]):
+        """提交后台翻译任务"""
+        leagues = set()
+        teams = set()
+        for g in games:
+            leagues.add(g.league)
+            teams.add(g.home_team)
+            teams.add(g.away_team)
+        # 去掉已缓存的
+        from app.translator import _get_cache
+        cache = _get_cache()
+        league_store = cache.get("league", {})
+        team_store = cache.get("team", {})
+        missing_l = [n for n in leagues if n and n not in league_store]
+        missing_t = [n for n in teams if n and n not in team_store]
+        if missing_l or missing_t:
+            cfg = load_config()
+            api_key = cfg.get("minimax", {}).get("key", "")
+            if api_key:
+                asyncio.create_task(self._do_translate(api_key, missing_l, missing_t))
 
-    LIVE_STATUSES = {"第一节", "第二节", "第三节", "第四节",
-                     "上半场", "下半场", "中场休息", "进行中"}
+    async def _do_translate(self, api_key: str, leagues: list[str], teams: list[str]):
+        from app.translator import translate_missing
+        if leagues:
+            await translate_missing(api_key, leagues, "league")
+        if teams:
+            await translate_missing(api_key, teams, "team")
+        reload_cache()
+
+    # ── 实时比赛 ──────────────────────────────
 
     async def get_live_games(self, sport_type: str) -> list[Game]:
         games = []
@@ -203,16 +179,11 @@ class APISportsDataSource(DataSource):
         result = await self.get_today_games()
         for g in result.get(sport_type, []):
             if g.id == game_id:
-                # 重建 GameDetail 含 linescores
                 return GameDetail(
-                    id=g.id,
-                    sport_type=g.sport_type,
-                    home_team=g.home_team,
-                    away_team=g.away_team,
-                    status=g.status,
-                    current_quarter=g.current_quarter,
-                    home_total=g.home_total,
-                    away_total=g.away_total,
+                    id=g.id, sport_type=g.sport_type,
+                    home_team=g.home_team, away_team=g.away_team,
+                    status=g.status, current_quarter=g.current_quarter,
+                    home_total=g.home_total, away_total=g.away_total,
                     home_scores=getattr(g, '_home_scores', []),
                     away_scores=getattr(g, '_away_scores', []),
                     raw_data=getattr(g, '_raw_data', {}),
@@ -238,6 +209,7 @@ class APISportsDataSource(DataSource):
             if status == "已结束":
                 current_q = len(home_q)
 
+            raw_league = g.get("league", {}).get("name", "")
             game = Game(
                 id=str(g.get("id", "")),
                 sport_type="basketball",
@@ -248,11 +220,11 @@ class APISportsDataSource(DataSource):
                 home_total=int(home_s.get("total", 0) or 0),
                 away_total=int(away_s.get("total", 0) or 0),
                 start_time=self._fmt_time(g.get("date", "")),
-                league=_tr(g.get("league", {}).get("name", "")),
+                league=tr_league(raw_league) or raw_league,
             )
-            game._home_scores = home_q  # type: ignore
-            game._away_scores = away_q  # type: ignore
-            game._raw_data = g  # type: ignore
+            game._home_scores = home_q
+            game._away_scores = away_q
+            game._raw_data = g
             result.append(game)
         return result
 
@@ -303,6 +275,7 @@ class APISportsDataSource(DataSource):
             elif status == "已结束":
                 current_q = 2
 
+            raw_league = f.get("league", {}).get("name", "")
             game = Game(
                 id=str(fixture.get("id", "")),
                 sport_type="football",
@@ -313,11 +286,11 @@ class APISportsDataSource(DataSource):
                 home_total=int(goals.get("home", 0) or 0),
                 away_total=int(goals.get("away", 0) or 0),
                 start_time=self._fmt_time(fixture.get("date", "")),
-                league=_tr(f.get("league", {}).get("name", "")),
+                league=tr_league(raw_league) or raw_league,
             )
-            game._home_scores = home_q  # type: ignore
-            game._away_scores = away_q  # type: ignore
-            game._raw_data = f  # type: ignore
+            game._home_scores = home_q
+            game._away_scores = away_q
+            game._raw_data = f
             result.append(game)
         return result
 
@@ -336,7 +309,6 @@ class APISportsDataSource(DataSource):
         return STATUS_MAP.get(short, short or "未知")
 
     def _fmt_time(self, date_str: str) -> str:
-        """UTC → 北京时间 HH:MM"""
         if not date_str:
             return ""
         try:

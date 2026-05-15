@@ -3,6 +3,7 @@ import httpx
 import logging
 from datetime import datetime
 from app.config import get_feishu_config
+from app.translator import get_bilingual_team, get_bilingual_league
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +25,13 @@ async def send_notification(rule, game_detail) -> bool:
 
     quarter_text = _format_quarters(game_detail)
     params_text = _format_params(rule.rule_type, params)
+    home_disp, away_disp = get_bilingual_team(game_detail.home_team, game_detail.away_team)
 
     lines = [
         f"**{emoji} 比赛匹配通知**",
         f"**规则**：{rule.name}",
         f"**条件**：{params_text}",
-        f"**比赛**：{game_detail.home_team} vs {game_detail.away_team}",
+        f"**比赛**：{home_disp} vs {away_disp}",
         f"**比分**：{quarter_text}",
     ]
 

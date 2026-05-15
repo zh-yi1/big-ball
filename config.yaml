@@ -1,16 +1,16 @@
 datasource:
-  type: "apisports"      # apisports / espn / dongqiudi / hupu / leisu
-
+  type: apisports
   poll_interval_seconds: 300
 
 feishu:
-  webhook_url: "https://open.feishu.cn/open-apis/bot/v2/hook/0f9390fa-9079-4556-bffd-ca85c09de287"
+  webhook_url: https://open.feishu.cn/open-apis/bot/v2/hook/0f9390fa-9079-4556-bffd-ca85c09de287
 
 apisports:
-  # 多个 key 轮询使用，一个用完自动切换下一个
   keys:
-    - "4e0a1f29a4b89caa3ed20ffc49b55a97"
-    # - "your-second-key-here"
+    - 4e0a1f29a4b89caa3ed20ffc49b55a97
+
+minimax:
+  key: ""                   # MiniMax API key，用于翻译联赛/队名
 
 juhe_api:
-  key: ""                # 聚合数据 API key（仅 API 模式需要）
+  key: ""
