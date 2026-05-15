@@ -145,9 +145,11 @@ async def api_today_games(request: Request, refresh: bool = False):
                 "start_time_full": g.start_time,
                 "league": g.league,
                 "current_quarter": g.current_quarter,
+                "home_scores": getattr(g, '_home_scores', []) or [],
+                "away_scores": getattr(g, '_away_scores', []) or [],
             }
             for g in games
-            if g.status != "已结束"  # 不显示已结束的比赛
+            if g.status != "已结束"
         ]
     from fastapi.responses import JSONResponse
     return JSONResponse({"datasource": config["type"], "games": output})
