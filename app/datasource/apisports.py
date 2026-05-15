@@ -24,6 +24,41 @@ STATUS_MAP = {
 }
 
 
+# 联赛名中英对照
+LEAGUE_CN = {
+    # 足球
+    "Premier League": "英超", "Ligue 1": "法甲", "Bundesliga": "德甲",
+    "Serie A": "意甲", "La Liga": "西甲", "Eredivisie": "荷甲",
+    "Primeira Liga": "葡超", "Super Lig": "土超", "Jupiler Pro League": "比甲",
+    "Championship": "英冠", "Ligue 2": "法乙", "Serie B": "意乙",
+    "2. Bundesliga": "德乙", "La Liga 2": "西乙", "Eerste Divisie": "荷乙",
+    "MLS": "美职联", "Saudi Pro League": "沙特联", "Primera División": "玻甲",
+    "Liga MX": "墨超", "FA Cup": "足总杯", "Copa Do Brasil": "巴西杯",
+    "UEFA Champions League": "欧冠", "UEFA Europa League": "欧联",
+    "U17 Asian Cup": "U17亚洲杯", "AFC Champions League": "亚冠",
+    "League One": "英甲", "League Two": "英乙",
+    "National League": "英议联", "Scottish Premiership": "苏超",
+    "A-League": "澳超", "CAF Champions League": "非冠",
+    "Copa Libertadores": "解放者杯", "Copa Sudamericana": "南球杯",
+    "Liga Profesional": "阿超", "Brasileirão": "巴甲",
+    "CSL": "中超", "K League 1": "韩K联", "J1 League": "日职联",
+    "J2 League": "日职乙", "A League": "澳超",
+    # 篮球
+    "NBA": "NBA", "WNBA": "WNBA", "NCAAB": "NCAA",
+    "LNB": "法篮甲", "ACB": "西篮甲", "Lega A": "意篮甲",
+    "BBL": "德篮甲", "BSN": "波多黎各BSN",
+    "NBL": "澳篮联", "MPBL": "菲律宾MPBL",
+    # 通用
+    "Super League": "超级联赛", "Superliga": "超级联赛",
+    "1. Division": "甲级联赛", "First League": "甲级联赛",
+    "Second League": "乙级联赛", "Premier Division": "超级联赛",
+    "Cup": "杯赛", "Super Cup": "超级杯",
+    "Liga Leumit": "以甲", "NB I A": "匈甲",
+    "Divizia A": "罗甲", "Energa Basket Liga": "波篮甲",
+    "Basket League": "希篮甲", "Super League Basketball": "英篮超",
+}
+
+
 class _KeyRotator:
     """API key 轮询器：一个 key 用完自动切下一个，每天重置"""
 
@@ -60,6 +95,11 @@ class _KeyRotator:
             del self._exhausted[self._idx]
             return False
         return True
+
+
+def _tr(name: str) -> str:
+    """翻译联赛名，找不到返回原名"""
+    return LEAGUE_CN.get(name, name)
 
 
 class APISportsDataSource(DataSource):
@@ -208,7 +248,7 @@ class APISportsDataSource(DataSource):
                 home_total=int(home_s.get("total", 0) or 0),
                 away_total=int(away_s.get("total", 0) or 0),
                 start_time=self._fmt_time(g.get("date", "")),
-                league=g.get("league", {}).get("name", ""),
+                league=_tr(g.get("league", {}).get("name", "")),
             )
             game._home_scores = home_q  # type: ignore
             game._away_scores = away_q  # type: ignore
@@ -273,7 +313,7 @@ class APISportsDataSource(DataSource):
                 home_total=int(goals.get("home", 0) or 0),
                 away_total=int(goals.get("away", 0) or 0),
                 start_time=self._fmt_time(fixture.get("date", "")),
-                league=f.get("league", {}).get("name", ""),
+                league=_tr(f.get("league", {}).get("name", "")),
             )
             game._home_scores = home_q  # type: ignore
             game._away_scores = away_q  # type: ignore
