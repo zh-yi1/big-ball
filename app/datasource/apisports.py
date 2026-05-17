@@ -62,7 +62,8 @@ class _KeyRotator:
 class APISportsDataSource(DataSource):
     """API-Sports 数据源 — 篮球逐节得分 + 足球海量联赛"""
 
-    LIVE_STATUSES = {"第一节", "第二节", "第三节", "第四节",
+    LIVE_STATUSES = {"第1节", "第2节", "第3节", "第4节",
+                     "第一节", "第二节", "第三节", "第四节",
                      "上半场", "下半场", "中场休息", "进行中"}
 
     def __init__(self):
