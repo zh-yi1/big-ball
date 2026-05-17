@@ -7,10 +7,14 @@ apisports:
   keys:
   - d5934d8a5fe79046aa6b8e892927fcfe
   - 9cbe56d2fc4145341f4a8745d5842d87
+  - cbf300337c87455fa7d9f9738a0c3bfe
 minimax:
   api_url: https://api.minimax.chat/v1/text/chatcompletion_v2
   keys:
     - eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJHcm91cE5hbWUiOiJ6aG91IiwiVXNlck5hbWUiOiJ6aG91IiwiQWNjb3VudCI6IiIsIlN1YmplY3RJRCI6IjE5ODg4Nzc2NDE1NDkwOTA5MTEiLCJQaG9uZSI6IjEzMTk3ODcyOTg2IiwiR3JvdXBJRCI6IjE5ODg4Nzc2NDE1NDA3MDIzMDMiLCJQYWdlTmFtZSI6IiIsIk1haWwiOiIiLCJDcmVhdGVUaW1lIjoiMjAyNS0xMi0xMiAxMDoyNTozNCIsIlRva2VuVHlwZSI6NCwiaXNzIjoibWluaW1heCJ9.kFRTC_MB_eLsgrrKxB_-aBYhR00NPgE4_ZEJcTHusN84arK_pCURGmvfLJjNXJS_XuEcbbYX6rS8gMF0m500uhqZDoXgGnV6mMPRZpz0ZK4DLVmpqrmL3ICG3Wkv44QPbI_66-M_2pCE3ulB9QxqiIGOuVtIzRR1hudlDs-lNRFklM2CSsJMdP4kZ-1RSmk70KEb4okGFD_h9FOQfucTBCQn_foZNb1z9e1NvbwN-wnAI3zQv6MCOY7eJQ33nVUcDWB7Z4jJAh8OeUKLKx4mtYVNIsJ4OJJcntQJ46Bs3qL05hqfL8nQpJnqH3_vOTyzm5GZleAZ58tDNy7XgFPJ4g
     # - "第二个key"
+thesportsdb:
+  key: "3"                  # TheSportsDB API key，付费版替换
+
 juhe_api:
   key: ''

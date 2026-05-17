@@ -1,6 +1,7 @@
 from app.datasource.base import DataSource
 from app.datasource.apisports import APISportsDataSource
 from app.datasource.espn import ESPNDataSource
+from app.datasource.thesportsdb import TheSportsDBDataSource
 from app.datasource.hupu import HupuDataSource
 from app.datasource.dongqiudi import DongqiudiDataSource
 from app.datasource.leisu import LeisuDataSource
@@ -18,6 +19,7 @@ class JuheApiDataSource(DataSource):
 
 DATA_SOURCE_MAP = {
     "apisports": APISportsDataSource,
+    "thesportsdb": TheSportsDBDataSource,
     "espn": ESPNDataSource,
     "dongqiudi": DongqiudiDataSource,
     "hupu": HupuDataSource,
