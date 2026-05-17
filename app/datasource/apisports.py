@@ -99,7 +99,7 @@ class APISportsDataSource(DataSource):
                     errors = data.get("errors", [])
                     if errors:
                         err_text = str(errors).lower()
-                        if any(w in err_text for w in ("quota", "rate", "limit", "exceeded", "requests")):
+                        if any(w in err_text for w in ("quota", "rate", "limit", "exceeded", "requests", "suspended", "access")):
                             self._rotator.mark_exhausted()
                             continue
                         return data
@@ -142,7 +142,8 @@ class APISportsDataSource(DataSource):
                 logger.warning(f"API-Sports football failed: {e}")
                 return []
 
-        bb, fb = await asyncio.gather(fetch_bb(), fetch_fb())
+        bb = await fetch_bb()
+        fb = await fetch_fb()
         result = {"basketball": bb, "football": fb}
         import time
         self._today_cache = result
