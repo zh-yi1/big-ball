@@ -6,7 +6,11 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 TRANSLATION_FILE = Path(__file__).parent.parent / "data" / "translations.json"
-MINIMAX_URL = "https://api.minimaxi.com/anthropic/v1/messages"
+
+
+def _get_minimax_config():
+    from app.config import load_config
+    return load_config().get("minimax", {})
 
 
 def load_cache() -> dict:
@@ -104,24 +108,33 @@ async def translate_missing(api_key: str, names: list[str], category: str = "lea
         f"Names:\n{json.dumps(missing, ensure_ascii=False)}"
     )
 
+    cfg = _get_minimax_config()
+    api_url = cfg.get("api_url", "https://api.minimax.chat/v1/text/chatcompletion_v2")
+
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(
-                MINIMAX_URL,
+                api_url,
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
-                    "Anthropic-Version": "2023-06-01",
                 },
                 json={
                     "model": "MiniMax-M2.7",
-                    "max_tokens": 2048,
+                    "max_tokens": 4096,
                     "messages": [{"role": "user", "content": prompt}],
                 },
             )
             if resp.status_code == 200:
                 data = resp.json()
-                text = data.get("content", [{}])[0].get("text", "")
+                # MiniMax native format: choices[0].message.content
+                text = ""
+                if "choices" in data:
+                    text = data["choices"][0].get("message", {}).get("content", "")
+                elif "reply" in data:
+                    text = data["reply"]
+                else:
+                    text = data.get("content", [{}])[0].get("text", "")
                 # Extract JSON from response
                 start = text.find("{")
                 end = text.rfind("}") + 1
@@ -131,8 +144,10 @@ async def translate_missing(api_key: str, names: list[str], category: str = "lea
                     save_cache(cache)
                     reload_cache()
                     logger.info(f"Translated {len(result)} names, saved to cache")
+                else:
+                    logger.warning(f"No JSON in response: {text[:200]}")
             else:
-                logger.warning(f"MiniMax API error: {resp.status_code}")
+                logger.warning(f"MiniMax API error: {resp.status_code} {resp.text[:200]}")
     except Exception as e:
         logger.warning(f"Translation API failed: {e}")
 
