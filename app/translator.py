@@ -121,7 +121,8 @@ async def translate_missing(api_key: str, names: list[str], category: str = "lea
                 },
                 json={
                     "model": "MiniMax-M2.7",
-                    "max_tokens": 4096,
+                    "max_tokens": 8192,
+                    "temperature": 0.1,
                     "messages": [{"role": "user", "content": prompt}],
                 },
             )
@@ -139,13 +140,16 @@ async def translate_missing(api_key: str, names: list[str], category: str = "lea
                 start = text.find("{")
                 end = text.rfind("}") + 1
                 if start >= 0 and end > start:
-                    result = json.loads(text[start:end])
-                    store.update(result)
-                    save_cache(cache)
-                    reload_cache()
-                    logger.info(f"Translated {len(result)} names, saved to cache")
+                    try:
+                        result = json.loads(text[start:end])
+                        store.update(result)
+                        save_cache(cache)
+                        reload_cache()
+                        logger.info(f"Translated {len(result)} names, saved to cache")
+                    except json.JSONDecodeError as je:
+                        logger.warning(f"JSON parse error: {je}, text: {text[start:end][:200]}")
                 else:
-                    logger.warning(f"No JSON in response: {text[:200]}")
+                    logger.warning(f"No JSON in response: {text[:300]}")
             else:
                 logger.warning(f"MiniMax API error: {resp.status_code} {resp.text[:200]}")
     except Exception as e:
