@@ -72,6 +72,9 @@ class APISportsDataSource(DataSource):
             raise RuntimeError("No API-Sports keys configured")
         self._rotator = _KeyRotator(keys)
         self._client: Optional[httpx.AsyncClient] = None
+        self._today_cache: Optional[dict] = None
+        self._cache_time: Optional[float] = None
+        self._cache_ttl = 300
 
     def _get_client(self) -> httpx.AsyncClient:
         key = self._rotator.current()
@@ -115,6 +118,12 @@ class APISportsDataSource(DataSource):
     # ── 今日赛程 ──────────────────────────────
 
     async def get_today_games(self, force: bool = False) -> dict[str, list[Game]]:
+        import time
+        now = time.monotonic()
+        if not force and self._today_cache is not None and self._cache_time is not None:
+            if now - self._cache_time < self._cache_ttl:
+                return self._today_cache
+
         today = datetime.now(CN_TZ).strftime("%Y-%m-%d")
 
         async def fetch_bb():
@@ -134,9 +143,13 @@ class APISportsDataSource(DataSource):
                 return []
 
         bb, fb = await asyncio.gather(fetch_bb(), fetch_fb())
+        result = {"basketball": bb, "football": fb}
+        import time
+        self._today_cache = result
+        self._cache_time = time.monotonic()
         # 后台异步翻译缺失的名称
         self._schedule_translation(bb + fb)
-        return {"basketball": bb, "football": fb}
+        return result
 
     def _schedule_translation(self, games: list[Game]):
         """提交后台翻译任务"""
@@ -155,8 +168,8 @@ class APISportsDataSource(DataSource):
         missing_t = [n for n in teams if n and n not in team_store]
         if missing_l or missing_t:
             cfg = load_config()
-            api_key = cfg.get("minimax", {}).get("key", "")
-            if api_key:
+            api_key = (cfg.get("minimax", {}) or {}).get("key", "")
+            if api_key and len(api_key) > 10:  # 有效 key 才翻译
                 asyncio.create_task(self._do_translate(api_key, missing_l, missing_t))
 
     async def _do_translate(self, api_key: str, leagues: list[str], teams: list[str]):
