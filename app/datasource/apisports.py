@@ -177,8 +177,11 @@ class APISportsDataSource(DataSource):
         return games
 
     async def get_game_detail(self, game_id: str, sport_type: str) -> Optional[GameDetail]:
-        result = await self.get_today_games()
-        for g in result.get(sport_type, []):
+        """从已缓存的 get_today_games 结果查找，避免重复 API 调用"""
+        # 如果没缓存，先拉一次
+        if self._today_cache is None:
+            await self.get_today_games()
+        for g in (self._today_cache or {}).get(sport_type, []):
             if g.id == game_id:
                 return GameDetail(
                     id=g.id, sport_type=g.sport_type,
