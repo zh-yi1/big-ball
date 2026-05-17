@@ -86,9 +86,7 @@ MATCHERS = {
 
 
 def check_rule(game: GameDetail, rule) -> bool:
-    """对一场比赛执行一条规则匹配。已结束的比赛直接跳过。"""
-    if game.status == "已结束":
-        return False
+    """对一场比赛执行一条规则匹配"""
     if game.sport_type != rule.sport_type:
         return False
     matcher = MATCHERS.get(rule.rule_type)
