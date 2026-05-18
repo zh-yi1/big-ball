@@ -350,6 +350,7 @@ async def api_history_matches(request: Request):
                 if check_rule(detail, rule):
                     pattern = get_parity_pattern(detail) if rule.rule_type == "quarter_sequence" else ""
                     all_matches.append({
+                        "id": g.id,
                         "date": date_str,
                         "rule_name": rule.name,
                         "sport": g.sport_type,
@@ -361,8 +362,10 @@ async def api_history_matches(request: Request):
                         "home_total": g.home_total,
                         "away_total": g.away_total,
                         "start_time": _fmt_time(g.start_time),
+                        "start_time_full": g.start_time,
                         "league": g.league,
                         "league_disp": get_bilingual_league(g.league),
+                        "current_quarter": g.current_quarter,
                         "home_scores": detail.home_scores,
                         "away_scores": detail.away_scores,
                         "pattern": pattern,
