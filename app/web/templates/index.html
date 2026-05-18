@@ -10,11 +10,14 @@
     <!-- 今日赛程 -->
     <div class="card" x-show="todayLoaded">
         <div class="flex-between" style="margin-bottom:12px;">
-            <h2>📅 今日赛程 <span class="text-muted" x-text="'(' + todaySource + ')'"></span></h2>
-            <button class="btn btn-sm btn-outline" @click="loadToday(true)">🔄 刷新</button>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <button class="btn btn-sm" :class="viewMode === 'all' ? 'btn-primary' : 'btn-outline'" @click="switchView('all')">📅 全部赛程</button>
+                <button class="btn btn-sm" :class="viewMode === 'basketball' ? 'btn-primary' : 'btn-outline'" @click="switchView('basketball')">🏀 篮球全部</button>
+            </div>
+            <button class="btn btn-sm btn-outline" @click="viewMode === 'basketball' ? loadBasketball(true) : loadToday(true)">🔄 刷新</button>
         </div>
         <template x-if="todayBasketball.length > 0 || todayFootball.length > 0">
-            <div>
+            <div x-show="viewMode === 'all'">
                 <!-- 篮球 -->
                 <template x-if="todayBasketball.length > 0">
                     <div style="margin-bottom:12px;">
@@ -79,7 +82,7 @@
             </div>
         </template>
         <template x-if="todayBasketball.length === 0 && todayFootball.length === 0">
-            <div class="empty">今日暂无比赛数据</div>
+            <div x-show="viewMode === 'all'" class="empty">今日暂无比赛数据</div>
         </template>
     </div>
 
@@ -131,6 +134,37 @@
         <div class="empty">暂无规则，点击右上角"新增规则"添加</div>
         {% endif %}
     </div>
+
+    <!-- 篮球全部视图 -->
+    <template x-if="viewMode === 'basketball'">
+        <div>
+            <table class="match-table">
+                <thead><tr><th>联赛</th><th>时间</th><th>状态</th><th class="team-col">队伍</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>总分</th></tr></thead>
+                <tbody>
+                    <template x-for="g in allBasketball" :key="g.id">
+                        <tr>
+                            <td><span class="tag" x-text="g.league_disp || g.league"></span></td>
+                            <td x-text="g.start_time || '-'" class="t-time"></td>
+                            <td class="t-status">
+                                <span x-show="g.status === '进行中'" class="tag-live">LIVE</span>
+                                <span x-show="g.status !== '进行中'" class="tag" :class="g.status==='未开始'?'tag-muted':''" x-text="g.status"></span>
+                            </td>
+                            <td class="team-col">
+                                <div x-text="g.home_cn || g.home_en"></div>
+                                <div x-text="g.away_cn || g.away_en"></div>
+                            </td>
+                            <td class="score-cell"><span x-text="(g.home_scores[0] ?? '-')"></span><span x-text="(g.away_scores[0] ?? '-')"></span><span class="q-total" x-text="(g.home_scores[0]!=null&&g.away_scores[0]!=null)?(g.home_scores[0]+g.away_scores[0]):''"></span></td>
+                            <td class="score-cell"><span x-text="(g.home_scores[1] ?? '-')"></span><span x-text="(g.away_scores[1] ?? '-')"></span><span class="q-total" x-text="(g.home_scores[1]!=null&&g.away_scores[1]!=null)?(g.home_scores[1]+g.away_scores[1]):''"></span></td>
+                            <td class="score-cell"><span x-text="(g.home_scores[2] ?? '-')"></span><span x-text="(g.away_scores[2] ?? '-')"></span><span class="q-total" x-text="(g.home_scores[2]!=null&&g.away_scores[2]!=null)?(g.home_scores[2]+g.away_scores[2]):''"></span></td>
+                            <td class="score-cell"><span x-text="(g.home_scores[3] ?? '-')"></span><span x-text="(g.away_scores[3] ?? '-')"></span><span class="q-total" x-text="(g.home_scores[3]!=null&&g.away_scores[3]!=null)?(g.home_scores[3]+g.away_scores[3]):''"></span></td>
+                            <td class="total-cell"><span class="total-home" x-text="g.home_total"></span><span class="total-away" x-text="g.away_total"></span><span class="q-total" x-text="g.home_total+g.away_total"></span></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+            <div x-show="!allBasketball || allBasketball.length === 0" class="empty">暂无比赛数据</div>
+        </div>
+    </template>
 
     <!-- 操作面板 -->
     <div class="card">
@@ -242,8 +276,27 @@ function ruleManager() {
         todaySource: '',
         todayBasketball: [],
         todayFootball: [],
-        showBasketball: false,  // 默认收起
-        showFootball: false,    // 默认收起
+        showBasketball: false,
+        showFootball: false,
+        viewMode: 'all',        // 'all' | 'basketball'
+        allBasketball: [],
+        switchView(mode) {
+            this.viewMode = mode;
+            if (mode === 'basketball' && this.allBasketball.length === 0) {
+                this.loadBasketball();
+            }
+        },
+        async loadBasketball(forceRefresh = false) {
+            try {
+                const url = forceRefresh ? '/api/basketball?refresh=true' : '/api/basketball';
+                const resp = await fetch(url);
+                const data = await resp.json();
+                this.allBasketball = data.games || [];
+            } catch (e) {
+                console.error('Failed to load basketball:', e);
+                this.allBasketball = [];
+            }
+        },
         async loadToday(forceRefresh = false) {
             try {
                 const url = forceRefresh ? '/api/today?refresh=true' : '/api/today';

@@ -162,6 +162,45 @@ async def api_today_games(request: Request, refresh: bool = False):
     return JSONResponse({"datasource": config["type"], "games": output})
 
 
+@router.get("/api/basketball")
+async def api_basketball_games(request: Request, refresh: bool = False):
+    """返回今日所有篮球比赛（含已结束），不分状态"""
+    from app.config import get_datasource_config
+    from app.datasource.factory import create_datasource
+    from app.translator import get_team_parts, get_bilingual_league
+
+    config = get_datasource_config()
+    ds = create_datasource(config["type"])
+    try:
+        result = await ds.get_today_games(force=refresh)
+    except Exception:
+        return JSONResponse({"games": []})
+
+    games = result.get("basketball", [])
+    output = [
+        {
+            "id": g.id,
+            "home_cn": get_team_parts(g.home_team)[0],
+            "home_en": get_team_parts(g.home_team)[1] or g.home_team,
+            "away_cn": get_team_parts(g.away_team)[0],
+            "away_en": get_team_parts(g.away_team)[1] or g.away_team,
+            "status": g.status,
+            "home_total": g.home_total,
+            "away_total": g.away_total,
+            "start_time": _fmt_time(g.start_time),
+            "start_time_full": g.start_time,
+            "league": g.league,
+            "league_disp": get_bilingual_league(g.league),
+            "current_quarter": g.current_quarter,
+            "home_scores": getattr(g, '_home_scores', []) or [],
+            "away_scores": getattr(g, '_away_scores', []) or [],
+        }
+        for g in games
+    ]
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"datasource": config["type"], "games": output})
+
+
 @router.post("/detect-now")
 async def detect_now(db: Session = Depends(get_db)):
     """手动触发一次检测：拉取今日所有比赛，逐场匹配规则，命中推飞书"""
