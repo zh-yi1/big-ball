@@ -1,12 +1,14 @@
 import json
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Rule, MatchHistory
 from app.scheduler import update_poll_interval
+
+CN_TZ = timezone(timedelta(hours=8))
 
 router = APIRouter()
 
@@ -285,7 +287,6 @@ async def api_history_matches(request: Request):
     from app.translator import get_team_parts, get_bilingual_league
     from app.database import SessionLocal
     from app.notifier.feishu import get_parity_pattern
-    from datetime import datetime as dt
 
     db = SessionLocal()
     try:
@@ -297,8 +298,8 @@ async def api_history_matches(request: Request):
         return JSONResponse({"matches": [], "days_scanned": 0})
 
     config = get_datasource_config()
-    today = dt.now(CN_TZ)
-    day = dt(today.year, today.month, 1, tzinfo=CN_TZ)
+    today = datetime.now(CN_TZ)
+    day = datetime(today.year, today.month, 1, tzinfo=CN_TZ)
     all_matches = []
     days = 0
 
@@ -369,7 +370,6 @@ async def api_history_matches(request: Request):
                     break
         day += timedelta(days=1)
 
-    from datetime import timedelta
     from fastapi.responses import JSONResponse
     return JSONResponse({"matches": all_matches, "days_scanned": days})
 
