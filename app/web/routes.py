@@ -275,6 +275,105 @@ def _parse_hour(time_str: str):
         return None
 
 
+@router.get("/api/history-matches")
+async def api_history_matches(request: Request):
+    """逐日检测本月1号到今天所有符合规则的比赛（用于测试 API 准确性）"""
+    from app.config import get_datasource_config
+    from app.datasource.factory import create_datasource
+    from app.datasource.base import GameDetail
+    from app.rule_engine.matchers import check_rule
+    from app.translator import get_team_parts, get_bilingual_league
+    from app.database import SessionLocal
+    from app.notifier.feishu import get_parity_pattern
+    from datetime import datetime as dt
+
+    db = SessionLocal()
+    try:
+        rules = db.query(Rule).filter(Rule.enabled == True).all()
+    finally:
+        db.close()
+
+    if not rules:
+        return JSONResponse({"matches": [], "days_scanned": 0})
+
+    config = get_datasource_config()
+    today = dt.now(CN_TZ)
+    day = dt(today.year, today.month, 1, tzinfo=CN_TZ)
+    all_matches = []
+    days = 0
+
+    while day <= today:
+        date_str = day.strftime("%Y-%m-%d")
+        days += 1
+        try:
+            ds = create_datasource(config["type"])
+            # 直接调内部 fetch，不走缓存
+            from app.datasource.apisports import APISportsDataSource, BB_API, FB_API
+            if isinstance(ds, APISportsDataSource):
+                bb_data = await ds._fetch(f"{BB_API}?date={date_str}&timezone=Asia/Shanghai")
+                fb_data = await ds._fetch(f"{FB_API}?date={date_str}&timezone=Asia/Shanghai")
+                bb_raw = bb_data.get("response", [])
+                fb_raw = fb_data.get("response", [])
+                # Parse manually
+                games = []
+                for g in bb_raw:
+                    g = ds._parse_bb_games([g])[0] if ds._parse_bb_games([g]) else None
+                    if g:
+                        games.append(g)
+                for f in fb_raw:
+                    g = ds._parse_fb_games([f])[0] if ds._parse_fb_games([f]) else None
+                    if g:
+                        games.append(g)
+            else:
+                result = await ds.get_today_games()
+                games = result.get("basketball", []) + result.get("football", [])
+        except Exception:
+            day += timedelta(days=1)
+            continue
+
+        for g in games:
+            if g.status == "未开始" and day.date() == today.date():
+                continue  # 今天的未开始比赛跳过，等开始后再看
+            detail = GameDetail(
+                id=g.id, sport_type=g.sport_type,
+                home_team=g.home_team, away_team=g.away_team,
+                status=g.status, current_quarter=g.current_quarter,
+                home_total=g.home_total, away_total=g.away_total,
+                home_scores=getattr(g, '_home_scores', []) or [],
+                away_scores=getattr(g, '_away_scores', []) or [],
+                raw_data={},
+            )
+            for rule in rules:
+                if rule.sport_type != g.sport_type:
+                    continue
+                if check_rule(detail, rule):
+                    pattern = get_parity_pattern(detail) if rule.rule_type == "quarter_sequence" else ""
+                    all_matches.append({
+                        "date": date_str,
+                        "rule_name": rule.name,
+                        "sport": g.sport_type,
+                        "home_cn": get_team_parts(g.home_team)[0],
+                        "home_en": get_team_parts(g.home_team)[1] or g.home_team,
+                        "away_cn": get_team_parts(g.away_team)[0],
+                        "away_en": get_team_parts(g.away_team)[1] or g.away_team,
+                        "status": g.status,
+                        "home_total": g.home_total,
+                        "away_total": g.away_total,
+                        "start_time": _fmt_time(g.start_time),
+                        "league": g.league,
+                        "league_disp": get_bilingual_league(g.league),
+                        "home_scores": detail.home_scores,
+                        "away_scores": detail.away_scores,
+                        "pattern": pattern,
+                    })
+                    break
+        day += timedelta(days=1)
+
+    from datetime import timedelta
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"matches": all_matches, "days_scanned": days})
+
+
 @router.post("/detect-now")
 async def detect_now(db: Session = Depends(get_db)):
     """手动触发一次检测：拉取今日所有比赛，逐场匹配规则，命中推飞书"""
