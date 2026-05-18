@@ -13,8 +13,9 @@
             <div style="display:flex; gap:8px; align-items:center;">
                 <button class="btn btn-sm" :class="viewMode === 'all' ? 'btn-primary' : 'btn-outline'" @click="switchView('all')">📅 全部赛程</button>
                 <button class="btn btn-sm" :class="viewMode === 'basketball' ? 'btn-primary' : 'btn-outline'" @click="switchView('basketball')">🏀 篮球全部</button>
+                <button class="btn btn-sm" :class="viewMode === 'matches' ? 'btn-primary' : 'btn-outline'" @click="switchView('matches')">🎯 命中比赛</button>
             </div>
-            <button class="btn btn-sm btn-outline" @click="viewMode === 'basketball' ? loadBasketball(true) : loadToday(true)">🔄 刷新</button>
+            <button class="btn btn-sm btn-outline" @click="refreshView()">🔄 刷新</button>
         </div>
         <template x-if="todayBasketball.length > 0 || todayFootball.length > 0">
             <div x-show="viewMode === 'all'">
@@ -166,6 +167,38 @@
         </div>
     </template>
 
+    <!-- 命中比赛视图 -->
+    <template x-if="viewMode === 'matches'">
+        <div>
+            <table class="match-table">
+                <thead><tr><th>联赛</th><th>时间</th><th>状态</th><th class="team-col">队伍</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>总分</th><th>模式</th></tr></thead>
+                <tbody>
+                    <template x-for="m in matchedGames" :key="m.id">
+                        <tr>
+                            <td><span class="tag" x-text="m.league_disp || m.league"></span></td>
+                            <td x-text="m.start_time || '-'" class="t-time"></td>
+                            <td class="t-status">
+                                <span x-show="m.status === '进行中'" class="tag-live">LIVE</span>
+                                <span x-show="m.status !== '进行中'" class="tag" :class="m.status==='未开始'?'tag-muted':''" x-text="m.status"></span>
+                            </td>
+                            <td class="team-col">
+                                <div x-text="m.home_cn || m.home_en"></div>
+                                <div x-text="m.away_cn || m.away_en"></div>
+                            </td>
+                            <td class="score-cell"><span x-text="(m.home_scores[0] ?? '-')"></span><span x-text="(m.away_scores[0] ?? '-')"></span><span class="q-total" x-text="(m.home_scores[0]!=null&&m.away_scores[0]!=null)?(m.home_scores[0]+m.away_scores[0]):''"></span></td>
+                            <td class="score-cell"><span x-text="(m.home_scores[1] ?? '-')"></span><span x-text="(m.away_scores[1] ?? '-')"></span><span class="q-total" x-text="(m.home_scores[1]!=null&&m.away_scores[1]!=null)?(m.home_scores[1]+m.away_scores[1]):''"></span></td>
+                            <td class="score-cell"><span x-text="(m.home_scores[2] ?? '-')"></span><span x-text="(m.away_scores[2] ?? '-')"></span><span class="q-total" x-text="(m.home_scores[2]!=null&&m.away_scores[2]!=null)?(m.home_scores[2]+m.away_scores[2]):''"></span></td>
+                            <td class="score-cell"><span x-text="(m.home_scores[3] ?? '-')"></span><span x-text="(m.away_scores[3] ?? '-')"></span><span class="q-total" x-text="(m.home_scores[3]!=null&&m.away_scores[3]!=null)?(m.home_scores[3]+m.away_scores[3]):''"></span></td>
+                            <td class="total-cell"><span class="total-home" x-text="m.home_total"></span><span class="total-away" x-text="m.away_total"></span><span class="q-total" x-text="m.home_total+m.away_total"></span></td>
+                            <td><span class="tag tag-success" x-text="m.pattern" x-show="m.pattern"></span></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+            <div x-show="!matchedGames || matchedGames.length === 0" class="empty">暂无命中比赛</div>
+        </div>
+    </template>
+
     <!-- 操作面板 -->
     <div class="card">
         <h2>操作</h2>
@@ -278,12 +311,32 @@ function ruleManager() {
         todayFootball: [],
         showBasketball: false,
         showFootball: false,
-        viewMode: 'all',        // 'all' | 'basketball'
+        viewMode: 'all',        // 'all' | 'basketball' | 'matches'
         allBasketball: [],
+        matchedGames: [],
         switchView(mode) {
             this.viewMode = mode;
             if (mode === 'basketball' && this.allBasketball.length === 0) {
                 this.loadBasketball();
+            }
+            if (mode === 'matches' && this.matchedGames.length === 0) {
+                this.loadMatches();
+            }
+        },
+        refreshView() {
+            if (this.viewMode === 'basketball') this.loadBasketball(true);
+            else if (this.viewMode === 'matches') this.loadMatches(true);
+            else this.loadToday(true);
+        },
+        async loadMatches(forceRefresh = false) {
+            try {
+                const url = forceRefresh ? '/api/matches?refresh=true' : '/api/matches';
+                const resp = await fetch(url);
+                const data = await resp.json();
+                this.matchedGames = data.matches || [];
+            } catch (e) {
+                console.error(e);
+                this.matchedGames = [];
             }
         },
         async loadBasketball(forceRefresh = false) {

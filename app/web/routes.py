@@ -201,6 +201,80 @@ async def api_basketball_games(request: Request, refresh: bool = False):
     return JSONResponse({"datasource": config["type"], "games": output})
 
 
+@router.get("/api/matches")
+async def api_matched_games(request: Request, refresh: bool = False):
+    from app.config import get_datasource_config
+    from app.datasource.factory import create_datasource
+    from app.datasource.base import GameDetail
+    from app.rule_engine.matchers import check_rule
+    from app.translator import get_team_parts, get_bilingual_league
+    from app.database import SessionLocal
+    from app.notifier.feishu import get_parity_pattern
+
+    config = get_datasource_config()
+    ds = create_datasource(config["type"])
+    try:
+        result = await ds.get_today_games(force=refresh)
+    except Exception:
+        return JSONResponse({"matches": []})
+
+    db = SessionLocal()
+    try:
+        rules = db.query(Rule).filter(Rule.enabled == True).all()
+    finally:
+        db.close()
+
+    matches = []
+    for sport, games in result.items():
+        for g in games:
+            hour = _parse_hour(g.start_time)
+            if hour is not None and (hour < 7 or hour > 23):
+                continue
+            detail = GameDetail(
+                id=g.id, sport_type=g.sport_type,
+                home_team=g.home_team, away_team=g.away_team,
+                status=g.status, current_quarter=g.current_quarter,
+                home_total=g.home_total, away_total=g.away_total,
+                home_scores=getattr(g, '_home_scores', []) or [],
+                away_scores=getattr(g, '_away_scores', []) or [],
+                raw_data={},
+            )
+            for rule in rules:
+                if rule.sport_type != g.sport_type:
+                    continue
+                if check_rule(detail, rule):
+                    pattern = get_parity_pattern(detail) if rule.rule_type == "quarter_sequence" else ""
+                    matches.append({
+                        "rule_name": rule.name,
+                        "sport": g.sport_type,
+                        "home_cn": get_team_parts(g.home_team)[0],
+                        "home_en": get_team_parts(g.home_team)[1] or g.home_team,
+                        "away_cn": get_team_parts(g.away_team)[0],
+                        "away_en": get_team_parts(g.away_team)[1] or g.away_team,
+                        "status": g.status,
+                        "home_total": g.home_total,
+                        "away_total": g.away_total,
+                        "start_time": _fmt_time(g.start_time),
+                        "league": g.league,
+                        "league_disp": get_bilingual_league(g.league),
+                        "home_scores": detail.home_scores,
+                        "away_scores": detail.away_scores,
+                        "pattern": pattern,
+                    })
+                    break
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"datasource": config["type"], "matches": matches})
+
+
+def _parse_hour(time_str: str):
+    if not time_str:
+        return None
+    try:
+        return int(time_str.strip().split(":")[0])
+    except (ValueError, IndexError):
+        return None
+
+
 @router.post("/detect-now")
 async def detect_now(db: Session = Depends(get_db)):
     """手动触发一次检测：拉取今日所有比赛，逐场匹配规则，命中推飞书"""
