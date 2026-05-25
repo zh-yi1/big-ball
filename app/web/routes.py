@@ -253,9 +253,6 @@ async def api_matched_games(request: Request, refresh: bool = False):
     matches = []
     for sport, games in result.items():
         for g in games:
-            hour = _parse_hour(g.start_time)
-            if hour is not None and (hour < 7 or hour > 23):
-                continue
             detail = GameDetail(
                 id=g.id, sport_type=g.sport_type,
                 home_team=g.home_team, away_team=g.away_team,
