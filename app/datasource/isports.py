@@ -70,6 +70,8 @@ class ISportsDataSource(DataSource):
                     games.append(g)
         except Exception as e:
             logger.warning(f"iSports livescores failed: {e}")
+        # 按比赛时间(北京时间)排序
+        games.sort(key=lambda g: g.start_time)
         result = {"basketball": games, "football": []}
         self._today_cache = result
         self._cache_time = time.monotonic()
