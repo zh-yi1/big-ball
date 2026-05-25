@@ -268,6 +268,7 @@ async def api_matched_games(request: Request, refresh: bool = False):
                 if check_rule(detail, rule):
                     pattern = get_parity_pattern(detail) if rule.rule_type == "quarter_sequence" else ""
                     matches.append({
+                        "id": g.id,
                         "rule_name": rule.name,
                         "sport": g.sport_type,
                         "home_cn": get_team_parts(g.home_team)[0],
