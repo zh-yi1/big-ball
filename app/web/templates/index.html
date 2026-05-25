@@ -27,7 +27,7 @@
                             <span x-text="showBasketball ? '▼' : '▶'"></span> 🏀 篮球 <span x-text="'(' + todayBasketball.length + '场)'"></span>
                         </h3>
                         <table x-show="showBasketball" class="match-table">
-                            <thead><tr><th>联赛</th><th>时间</th><th>状态</th><th class="team-col">队伍</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
+                            <thead><tr><th>联赛</th><th>时间</th><th>状态</th><th class="team-col">队伍</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>总分</th></tr></thead>
                             <tbody>
                                 <template x-for="g in todayBasketball" :key="g.id">
                                     <tr>
@@ -41,10 +41,11 @@
                                             <div x-text="g.home_cn || g.home_en"></div>
                                             <div x-text="g.away_cn || g.away_en"></div>
                                         </td>
-                                        <td class="score-cell"><span x-text="(g.home_scores[0] ?? '-')"></span><span x-text="(g.away_scores[0] ?? '-')"></span><span class="q-total" x-text="(g.home_scores[0] != null && g.away_scores[0] != null) ? (g.home_scores[0] + g.away_scores[0]) : ''"></span></td>
-                                        <td class="score-cell"><span x-text="(g.home_scores[1] ?? '-')"></span><span x-text="(g.away_scores[1] ?? '-')"></span><span class="q-total" x-text="(g.home_scores[1] != null && g.away_scores[1] != null) ? (g.home_scores[1] + g.away_scores[1]) : ''"></span></td>
-                                        <td class="score-cell"><span x-text="(g.home_scores[2] ?? '-')"></span><span x-text="(g.away_scores[2] ?? '-')"></span><span class="q-total" x-text="(g.home_scores[2] != null && g.away_scores[2] != null) ? (g.home_scores[2] + g.away_scores[2]) : ''"></span></td>
-                                        <td class="score-cell"><span x-text="(g.home_scores[3] ?? '-')"></span><span x-text="(g.away_scores[3] ?? '-')"></span><span class="q-total" x-text="(g.home_scores[3] != null && g.away_scores[3] != null) ? (g.home_scores[3] + g.away_scores[3]) : ''"></span></td>
+                                        <td class="score-cell"><span x-text="(g.home_scores[0] ?? '-')"></span><span x-text="(g.away_scores[0] ?? '-')"></span></td>
+                                        <td class="score-cell"><span x-text="(g.home_scores[1] ?? '-')"></span><span x-text="(g.away_scores[1] ?? '-')"></span></td>
+                                        <td class="score-cell"><span x-text="(g.home_scores[2] ?? '-')"></span><span x-text="(g.away_scores[2] ?? '-')"></span></td>
+                                        <td class="score-cell"><span x-text="(g.home_scores[3] ?? '-')"></span><span x-text="(g.away_scores[3] ?? '-')"></span></td>
+                                        <td class="total-cell"><span class="total-home" x-text="g.home_total"></span><span class="total-away" x-text="g.away_total"></span></td>
                                     </tr>
                                 </template>
                             </tbody>
@@ -131,7 +132,7 @@
     <template x-if="viewMode === 'basketball'">
         <div>
             <table class="match-table">
-                <thead><tr><th>联赛</th><th>时间</th><th>状态</th><th class="team-col">队伍</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
+                <thead><tr><th>联赛</th><th>时间</th><th>状态</th><th class="team-col">队伍</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>总分</th></tr></thead>
                 <tbody>
                     <template x-for="g in allBasketball" :key="g.id">
                         <tr>
@@ -145,10 +146,11 @@
                                 <div x-text="g.home_cn || g.home_en"></div>
                                 <div x-text="g.away_cn || g.away_en"></div>
                             </td>
-                            <td class="score-cell"><span x-text="(g.home_scores[0] ?? '-')"></span><span x-text="(g.away_scores[0] ?? '-')"></span><span class="q-total" x-text="(g.home_scores[0]!=null&&g.away_scores[0]!=null)?(g.home_scores[0]+g.away_scores[0]):''"></span></td>
-                            <td class="score-cell"><span x-text="(g.home_scores[1] ?? '-')"></span><span x-text="(g.away_scores[1] ?? '-')"></span><span class="q-total" x-text="(g.home_scores[1]!=null&&g.away_scores[1]!=null)?(g.home_scores[1]+g.away_scores[1]):''"></span></td>
-                            <td class="score-cell"><span x-text="(g.home_scores[2] ?? '-')"></span><span x-text="(g.away_scores[2] ?? '-')"></span><span class="q-total" x-text="(g.home_scores[2]!=null&&g.away_scores[2]!=null)?(g.home_scores[2]+g.away_scores[2]):''"></span></td>
-                            <td class="score-cell"><span x-text="(g.home_scores[3] ?? '-')"></span><span x-text="(g.away_scores[3] ?? '-')"></span><span class="q-total" x-text="(g.home_scores[3]!=null&&g.away_scores[3]!=null)?(g.home_scores[3]+g.away_scores[3]):''"></span></td>
+                            <td class="score-cell"><span x-text="(g.home_scores[0] ?? '-')"></span><span x-text="(g.away_scores[0] ?? '-')"></span></td>
+                            <td class="score-cell"><span x-text="(g.home_scores[1] ?? '-')"></span><span x-text="(g.away_scores[1] ?? '-')"></span></td>
+                            <td class="score-cell"><span x-text="(g.home_scores[2] ?? '-')"></span><span x-text="(g.away_scores[2] ?? '-')"></span></td>
+                            <td class="score-cell"><span x-text="(g.home_scores[3] ?? '-')"></span><span x-text="(g.away_scores[3] ?? '-')"></span></td>
+                            <td class="total-cell"><span class="total-home" x-text="g.home_total"></span><span class="total-away" x-text="g.away_total"></span></td>
                         </tr>
                     </template>
                 </tbody>
@@ -161,7 +163,7 @@
     <template x-if="viewMode === 'matches'">
         <div>
             <table class="match-table">
-                <thead><tr><th>联赛</th><th>时间</th><th>状态</th><th class="team-col">队伍</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>模式</th></tr></thead>
+                <thead><tr><th>联赛</th><th>时间</th><th>状态</th><th class="team-col">队伍</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>总分</th><th>模式</th></tr></thead>
                 <tbody>
                     <template x-for="m in matchedGames" :key="m.id">
                         <tr>
@@ -175,10 +177,11 @@
                                 <div x-text="m.home_cn || m.home_en"></div>
                                 <div x-text="m.away_cn || m.away_en"></div>
                             </td>
-                            <td class="score-cell"><span x-text="(m.home_scores[0] ?? '-')"></span><span x-text="(m.away_scores[0] ?? '-')"></span><span class="q-total" x-text="(m.home_scores[0]!=null&&m.away_scores[0]!=null)?(m.home_scores[0]+m.away_scores[0]):''"></span></td>
-                            <td class="score-cell"><span x-text="(m.home_scores[1] ?? '-')"></span><span x-text="(m.away_scores[1] ?? '-')"></span><span class="q-total" x-text="(m.home_scores[1]!=null&&m.away_scores[1]!=null)?(m.home_scores[1]+m.away_scores[1]):''"></span></td>
-                            <td class="score-cell"><span x-text="(m.home_scores[2] ?? '-')"></span><span x-text="(m.away_scores[2] ?? '-')"></span><span class="q-total" x-text="(m.home_scores[2]!=null&&m.away_scores[2]!=null)?(m.home_scores[2]+m.away_scores[2]):''"></span></td>
-                            <td class="score-cell"><span x-text="(m.home_scores[3] ?? '-')"></span><span x-text="(m.away_scores[3] ?? '-')"></span><span class="q-total" x-text="(m.home_scores[3]!=null&&m.away_scores[3]!=null)?(m.home_scores[3]+m.away_scores[3]):''"></span></td>
+                            <td class="score-cell"><span x-text="(m.home_scores[0] ?? '-')"></span><span x-text="(m.away_scores[0] ?? '-')"></span></td>
+                            <td class="score-cell"><span x-text="(m.home_scores[1] ?? '-')"></span><span x-text="(m.away_scores[1] ?? '-')"></span></td>
+                            <td class="score-cell"><span x-text="(m.home_scores[2] ?? '-')"></span><span x-text="(m.away_scores[2] ?? '-')"></span></td>
+                            <td class="score-cell"><span x-text="(m.home_scores[3] ?? '-')"></span><span x-text="(m.away_scores[3] ?? '-')"></span></td>
+                            <td class="total-cell"><span class="total-home" x-text="m.home_total"></span><span class="total-away" x-text="m.away_total"></span></td>
                             <td><span class="tag tag-success" x-text="m.pattern" x-show="m.pattern"></span></td>
                         </tr>
                     </template>
@@ -193,7 +196,7 @@
         <div>
             <div x-show="historyLoading" class="empty">⏳ 正在逐日检测月初到今天，请稍候...</div>
             <table x-show="!historyLoading" class="match-table">
-                <thead><tr><th>日期</th><th>联赛</th><th>时间</th><th>状态</th><th class="team-col">队伍</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>模式</th></tr></thead>
+                <thead><tr><th>日期</th><th>联赛</th><th>时间</th><th>状态</th><th class="team-col">队伍</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>总分</th><th>模式</th></tr></thead>
                 <tbody>
                     <template x-for="m in historyMatches" :key="m.date + '_' + m.id">
                         <tr>
@@ -208,10 +211,11 @@
                                 <div x-text="m.home_cn || m.home_en"></div>
                                 <div x-text="m.away_cn || m.away_en"></div>
                             </td>
-                            <td class="score-cell"><span x-text="(m.home_scores[0] ?? '-')"></span><span x-text="(m.away_scores[0] ?? '-')"></span><span class="q-total" x-text="(m.home_scores[0]!=null&&m.away_scores[0]!=null)?(m.home_scores[0]+m.away_scores[0]):''"></span></td>
-                            <td class="score-cell"><span x-text="(m.home_scores[1] ?? '-')"></span><span x-text="(m.away_scores[1] ?? '-')"></span><span class="q-total" x-text="(m.home_scores[1]!=null&&m.away_scores[1]!=null)?(m.home_scores[1]+m.away_scores[1]):''"></span></td>
-                            <td class="score-cell"><span x-text="(m.home_scores[2] ?? '-')"></span><span x-text="(m.away_scores[2] ?? '-')"></span><span class="q-total" x-text="(m.home_scores[2]!=null&&m.away_scores[2]!=null)?(m.home_scores[2]+m.away_scores[2]):''"></span></td>
-                            <td class="score-cell"><span x-text="(m.home_scores[3] ?? '-')"></span><span x-text="(m.away_scores[3] ?? '-')"></span><span class="q-total" x-text="(m.home_scores[3]!=null&&m.away_scores[3]!=null)?(m.home_scores[3]+m.away_scores[3]):''"></span></td>
+                            <td class="score-cell"><span x-text="(m.home_scores[0] ?? '-')"></span><span x-text="(m.away_scores[0] ?? '-')"></span></td>
+                            <td class="score-cell"><span x-text="(m.home_scores[1] ?? '-')"></span><span x-text="(m.away_scores[1] ?? '-')"></span></td>
+                            <td class="score-cell"><span x-text="(m.home_scores[2] ?? '-')"></span><span x-text="(m.away_scores[2] ?? '-')"></span></td>
+                            <td class="score-cell"><span x-text="(m.home_scores[3] ?? '-')"></span><span x-text="(m.away_scores[3] ?? '-')"></span></td>
+                            <td class="total-cell"><span class="total-home" x-text="m.home_total"></span><span class="total-away" x-text="m.away_total"></span></td>
                             <td><span class="tag tag-success" x-text="m.pattern" x-show="m.pattern"></span></td>
                         </tr>
                     </template>
