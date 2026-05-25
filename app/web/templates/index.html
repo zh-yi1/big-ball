@@ -301,7 +301,6 @@
 
 <script>
 function ruleManager() {
-    function ruleManager() {
     return {
         showModal: false,
         rulePattern: '',
@@ -394,60 +393,6 @@ function ruleManager() {
                 this.todayFootball = [];
             }
             this.todayLoaded = true;
-        },
-        get formAction() {
-            return this.isEdit ? `/rules/${this.editId}/edit` : '/rules/add';
-        },
-        get paramsHint() {
-            const hints = {
-                'quarter_parity': '例: {"quarters": [1, 2], "parity": "odd"}  — odd=单数 even=双数',
-                'total_score': '例: {"operator": ">", "value": 200}  — operator: > >= < <= =',
-                'quarter_diff': '例: {"quarter": 1, "operator": ">", "value": 5}',
-                'quarter_sequence': '例: {"conditions":[{"quarter":1,"parity":"odd"},{"quarter":2,"parity":"odd"}],"trigger_quarter":4}',
-            };
-            return hints[this.form.rule_type] || '';
-        },
-        onRuleTypeChange() {
-            const defaults = {
-                'quarter_parity': '{"quarters": [1, 2], "parity": "odd"}',
-                'total_score': '{"operator": ">", "value": 200}',
-                'quarter_diff': '{"quarter": 1, "operator": ">", "value": 5}',
-                'quarter_sequence': '{"conditions":[{"quarter":1,"parity":"odd"},{"quarter":2,"parity":"odd"}],"trigger_quarter":4}',
-            };
-            if (!this.isEdit) {
-                this.form.params_json = defaults[this.form.rule_type] || '{}';
-            }
-        },
-        openAdd() {
-            this.isEdit = false;
-            this.editId = null;
-            this.form = {
-                name: '',
-                sport_type: 'basketball',
-                rule_type: 'quarter_parity',
-                params_json: '{"quarters": [1, 2], "parity": "odd"}',
-                enabled: true,
-            };
-            this.showModal = true;
-        },
-        openEdit(el) {
-            this.isEdit = true;
-            this.editId = parseInt(el.dataset.ruleId);
-            this.form = {
-                name: el.dataset.ruleName,
-                sport_type: el.dataset.ruleSport,
-                rule_type: el.dataset.ruleType,
-                params_json: JSON.stringify(JSON.parse(el.dataset.ruleParams), null, 2),
-                enabled: el.dataset.ruleEnabled === 'true',
-            };
-            this.showModal = true;
-        },
-        deleteRule(id) {
-            if (confirm('确定删除该规则？')) {
-                const form = document.getElementById('delete-form');
-                form.action = `/rules/${id}/delete`;
-                form.submit();
-            }
         },
     };
 }
