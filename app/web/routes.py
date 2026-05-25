@@ -31,11 +31,27 @@ def index(request: Request, db: Session = Depends(get_db)):
     rules = db.query(Rule).order_by(Rule.updated_at.desc()).all()
     history = db.query(MatchHistory).order_by(MatchHistory.matched_at.desc()).limit(50).all()
     interval = get_datasource_config().get("poll_interval_seconds", 300)
+    # Pre-compute pattern for display
+    parsed_rules = []
+    for r in rules:
+        try:
+            p = json.loads(r.params)
+            c = p.get("conditions", [])
+            pattern = "".join("1" if x.get("parity") == "odd" else "0" for x in c)
+            q1 = "单" if c[0].get("parity") == "odd" else "双" if len(c) > 0 else "?"
+            q2 = "单" if c[1].get("parity") == "odd" else "双" if len(c) > 1 else "?"
+            q3 = "单" if c[2].get("parity") == "odd" else "双" if len(c) > 2 else "?"
+        except Exception:
+            pattern = "???"
+            q1 = q2 = q3 = "?"
+        parsed_rules.append({
+            "id": r.id, "name": r.name, "enabled": r.enabled,
+            "pattern": pattern, "q1": q1, "q2": q2, "q3": q3,
+        })
     return request.app.state.templates.TemplateResponse("index.html", {
         "request": request,
-        "rules": rules,
+        "rules": parsed_rules,
         "history": history,
-        "rule_type_labels": RULE_TYPE_LABELS,
         "sport_labels": SPORT_LABELS,
         "poll_interval": interval,
     })

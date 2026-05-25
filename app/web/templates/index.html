@@ -102,15 +102,11 @@
             <thead><tr><th>模式</th><th>Q1</th><th>Q2</th><th>Q3</th><th>状态</th><th>操作</th></tr></thead>
             <tbody>
                 {% for rule in rules %}
-                {% set p = rule.params | tojson | fromjson %}
-                {% set c = p.conditions %}
                 <tr>
-                    <td style="font-weight:bold;font-size:16px;font-family:monospace;">
-                        {% for cond in c %}{% if cond.parity == 'odd' %}1{% else %}0{% endif %}{% endfor %}
-                    </td>
-                    <td>{{ '单' if c[0].parity == 'odd' else '双' }}</td>
-                    <td>{{ '单' if c[1].parity == 'odd' else '双' }}</td>
-                    <td>{{ '单' if c[2].parity == 'odd' else '双' }}</td>
+                    <td style="font-weight:bold;font-size:16px;font-family:monospace;">{{ rule.pattern }}</td>
+                    <td>{{ rule.q1 }}</td>
+                    <td>{{ rule.q2 }}</td>
+                    <td>{{ rule.q3 }}</td>
                     <td>
                         {% if rule.enabled %}
                         <span class="tag tag-success">启用</span>
