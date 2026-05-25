@@ -43,22 +43,30 @@ def index(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/rules/add")
 def add_rule(
-    name: str = Form(...),
-    sport_type: str = Form(...),
-    rule_type: str = Form(...),
-    params_json: str = Form(default="{}"),
+    pattern: str = Form(default=""),
+    sport_type: str = Form(default="basketball"),
+    rule_type: str = Form(default="quarter_sequence"),
     enabled: bool = Form(default=True),
     db: Session = Depends(get_db),
 ):
-    try:
-        json.loads(params_json)
-    except json.JSONDecodeError:
-        params_json = "{}"
+    # 将 pattern(如 "001") 转为 quarter_sequence 参数
+    pattern = (pattern or "").strip()
+    if len(pattern) != 3 or not pattern.isdigit():
+        return RedirectResponse("/", status_code=303)
+    conditions = []
+    parity_map = {"0": "even", "1": "odd"}
+    for i, ch in enumerate(pattern):
+        if ch not in parity_map:
+            return RedirectResponse("/", status_code=303)
+        conditions.append({"quarter": i + 1, "parity": parity_map[ch]})
+    params = json.dumps({"conditions": conditions, "trigger_quarter": 4})
+    name = f"模式{pattern}"
+
     rule = Rule(
         name=name,
         sport_type=sport_type,
         rule_type=rule_type,
-        params=params_json,
+        params=params,
         enabled=enabled,
     )
     db.add(rule)
